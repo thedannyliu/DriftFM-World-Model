@@ -79,8 +79,11 @@ PIPE_STATUSES=("${PIPESTATUS[@]}")
 STATUS=${PIPE_STATUSES[0]}
 set -e
 if (( STATUS != 0 )); then
-    echo "Training failed with exit ${STATUS}; last 40 log lines:" >&2
-    tail -n 40 "${FULL_LOG}" >&2
+    echo "Training failed with exit ${STATUS}; first error context:" >&2
+    grep -n -m 1 -B 5 -A 50 -E \
+        'Traceback \(most recent call last\):|ModuleNotFoundError:|ImportError:|FileNotFoundError:|RuntimeError:' \
+        "${FULL_LOG}" >&2 || tail -n 60 "${FULL_LOG}" >&2
+    echo "full_log=${FULL_LOG}" >&2
     exit "${STATUS}"
 fi
 

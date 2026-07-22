@@ -51,8 +51,11 @@ run_train() {
     set -e
     train_status=${statuses[0]}
     if (( train_status != 0 )); then
-        echo "[smoke] failed arm=${label} max_steps=${max_steps} exit=${train_status}; last 40 log lines:" >&2
-        tail -n 40 "${log_file}" >&2
+        echo "[smoke] failed arm=${label} max_steps=${max_steps} exit=${train_status}; first error context:" >&2
+        grep -n -m 1 -B 5 -A 50 -E \
+            'Traceback \(most recent call last\):|ModuleNotFoundError:|ImportError:|FileNotFoundError:|RuntimeError:' \
+            "${log_file}" >&2 || tail -n 60 "${log_file}" >&2
+        echo "[smoke] full_log=${log_file}" >&2
         exit "${train_status}"
     fi
     if [[ ! -f ${output_dir}/ckpt-latest.pth ]]; then

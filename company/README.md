@@ -101,4 +101,5 @@ under `/user-volume/driftworld/logs/`. Useful overrides include `MAX_STEPS`,
 
 Training launchers print the resolved GPU, checkpoint, output, log, and W&B settings.
 Smoke runs print every loss/checkpoint event; pilot runs print every 100th loss plus
-checkpoint events. Any failed subprocess prints the last 40 full-log lines.
+checkpoint events. Any failed DDP subprocess prints the first underlying traceback
+context rather than only the final TorchElastic wrapper summary.
