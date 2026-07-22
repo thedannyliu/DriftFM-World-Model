@@ -8,8 +8,8 @@ written as a zero.
 
 | ID | Status | Task / seed | Manifest | GPU | Parent -> output | W&B | Metrics | Decision |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| S0 | queued (`11362493`) | synthetic forward / 1 | `docs/manifests/smoke.yaml` | L40S, `embers` | commit `5cf2855` -> `/storage/scratch1/9/eliu354/driftflowworld/runs/smoke/model-11362493.json` | disabled | CPU unit: endpoint exact; variable NFE deterministic; backward finite. GPU metrics pending. | Must pass before data jobs. |
-| S1 | planned | Push-T one-row train / 1 | `docs/manifests/smoke.yaml` | 2x L40S | official -> smoke checkpoint | `driftflowworld-pusht` | loss finite, DDP sync, resume step/run ID | Must pass before training. |
+| S0 | queued (`11362493`) | synthetic forward / 1 | `docs/manifests/smoke.yaml` | L40S, `embers` | commit `5cf2855` -> `/storage/scratch1/9/eliu354/driftflowworld/runs/smoke/model-11362493.json` | disabled | Formal env: 5 tests passed; endpoint exact, variable NFE deterministic, backward finite. Data smoke: image `(1,8,3,96,96)`, action `(1,8,2)`, 16 Zarr datasets. GPU metrics pending. | Must pass before data jobs. |
+| S1 | queued (`11362747`, afterok `11362493`) | Push-T two-step train / 1 | `docs/manifests/smoke.yaml` | 2x L40S, `embers` | official -> `/storage/scratch1/9/eliu354/driftflowworld/checkpoints/smoke-ddp` | offline smoke, run ID persisted | loss finite, DDP sync, checkpoint/RNG/run ID; resume validation follows first pass | Must pass before H100 training. |
 
 ## Q1 — Is the released DriftWorld result reproduced?
 
