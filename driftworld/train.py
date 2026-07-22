@@ -197,6 +197,7 @@ def train(cfg):
 
     # Set up wandb run
     if is_main():
+        training_rng_state = rng_state_dict()
         if cfg.wandb_info.get('key'):
             wandb.login(key=cfg.wandb_info.key)
         if not os.path.exists(cfg.wandb_info.saved_run_id):
@@ -227,6 +228,7 @@ def train(cfg):
 
         n_params = sum(p.numel() for p in inner.parameters() if p.requires_grad)
         wandb.log({'num_params': n_params, 'seed': cfg.train.seed}, step=actual_step)
+        load_rng_state_dict(training_rng_state)
     barrier(world_size)
 
     start_ep = actual_step // len(dataloader) + 1
