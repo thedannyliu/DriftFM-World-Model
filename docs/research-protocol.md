@@ -48,11 +48,14 @@ transport intervals while reusing the initial noise for paired comparisons.
    NFE=1 output is numerically equal before training.
 2. **Baseline reproduction:** released 64-frame/full-video metrics fall within 10%
    relative MSE/LPIPS, 0.005 absolute SSIM, and 0.5 dB PSNR of reported values.
-3. **Transport signal:** NFE=1 degrades by no more than 5%; NFE=4 improves LPIPS or
+3. **10k pilot:** on the first 25 validation videos, compare the matched continued
+   DriftWorld arm with DriftFlowWorld NFE=1/2/4 before committing the remaining budget.
+   This is a direction check, not the locked transport claim.
+4. **Transport signal:** NFE=1 degrades by no more than 5%; NFE=4 improves LPIPS or
    block-pose error by at least 5% relative to NFE=1 on a locked validation set.
-4. **Planning signal:** coarse-to-fine beats equal-wall-clock uniform one-step breadth
+5. **Planning signal:** coarse-to-fine beats equal-wall-clock uniform one-step breadth
    with paired 95% bootstrap CI above zero on at least one locked policy.
-5. **Confirmation:** repeat the selected configuration from scratch for seeds 1, 2,
+6. **Confirmation:** repeat the selected configuration from scratch for seeds 1, 2,
    and 3.
 
 If gate 3 fails after 100k post-training updates, run one bounded ablation wave:

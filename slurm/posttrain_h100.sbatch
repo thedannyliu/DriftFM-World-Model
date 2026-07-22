@@ -16,10 +16,12 @@ REPO_ROOT=/storage/project/r-agarg35-0/eliu354/projects/driftworld
 ARTIFACT_ROOT=/storage/scratch1/9/eliu354/driftflowworld
 ENV_PREFIX=${ARTIFACT_ROOT}/envs/pace-cu128-py312-v1
 CONFIGS=(pushT_driftworld_continue pushT_driftflow)
+MAX_STEPS=${MAX_STEPS:-100000}
 export HF_HOME=${ARTIFACT_ROOT}/cache/huggingface
 export TORCH_HOME=${ARTIFACT_ROOT}/cache/torch
 export WANDB_DIR=${ARTIFACT_ROOT}/runs/wandb
 export PYTHONNOUSERSITE=1
 cd "${REPO_ROOT}/driftworld"
 "${ENV_PREFIX}/bin/torchrun" --standalone --nproc_per_node=2 main_train.py \
-    --config-name="${CONFIGS[${SLURM_ARRAY_TASK_ID}]}"
+    --config-name="${CONFIGS[${SLURM_ARRAY_TASK_ID}]}" \
+    train.max_steps="${MAX_STEPS}"

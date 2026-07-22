@@ -16,6 +16,10 @@ ARTIFACT_ROOT=/storage/scratch1/9/eliu354/driftflowworld
 ENV_PREFIX=${ARTIFACT_ROOT}/envs/pace-cu128-py312-v1
 NUM_VIDEOS=${EVAL_NUM_VIDEOS:-10}
 METRICS_DIR=${EVAL_METRICS_DIR:-${ARTIFACT_ROOT}/runs/metrics/driftworld-official-smoke}
+CHECKPOINT_ARGS=()
+if [[ -n "${EVAL_CHECKPOINT:-}" ]]; then
+    CHECKPOINT_ARGS=(+eval.checkpoint="${EVAL_CHECKPOINT}")
+fi
 export HF_HOME=${ARTIFACT_ROOT}/cache/huggingface
 export TORCH_HOME=${ARTIFACT_ROOT}/cache/torch
 export WANDB_DIR=${ARTIFACT_ROOT}/runs/wandb
@@ -25,4 +29,5 @@ cd "${REPO_ROOT}/driftworld"
     data.dataset_path_dir="${ARTIFACT_ROOT}/data/world_model_data/dataset_domain/all_data" \
     output_dir="${ARTIFACT_ROOT}/checkpoints/official/pusht_checkpoints/pushT_driftworld" \
     +eval.num_videos="${NUM_VIDEOS}" \
-    +eval.metrics_dir="${METRICS_DIR}"
+    +eval.metrics_dir="${METRICS_DIR}" \
+    "${CHECKPOINT_ARGS[@]}"
