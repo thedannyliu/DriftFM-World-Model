@@ -225,7 +225,7 @@ checkpoints/
 runs/
 slurm_logs/
 wandb/
-driftworld/pusht_data/
-driftworld/pusht_checkpoints/
+driftworld/pusht_data
+driftworld/pusht_checkpoints
 driftworld/outputs/
 *.sbatch.local
