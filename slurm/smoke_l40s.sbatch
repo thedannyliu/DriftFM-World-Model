@@ -17,6 +17,7 @@ ENV_PREFIX=${ARTIFACT_ROOT}/envs/pace-cu128-py312-v1
 export HF_HOME=${ARTIFACT_ROOT}/cache/huggingface
 export TORCH_HOME=${ARTIFACT_ROOT}/cache/torch
 export WANDB_DIR=${ARTIFACT_ROOT}/runs/wandb
+export PYTHONNOUSERSITE=1
 cd "${REPO_ROOT}"
 "${ENV_PREFIX}/bin/python" scripts/smoke_model.py \
     --output "${ARTIFACT_ROOT}/runs/smoke/model-${SLURM_JOB_ID}.json"

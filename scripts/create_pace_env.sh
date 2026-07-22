@@ -4,6 +4,7 @@ set -euo pipefail
 REPO_ROOT="/storage/project/r-agarg35-0/eliu354/projects/driftworld"
 ARTIFACT_ROOT="${DRIFTFLOWWORLD_ROOT:-/storage/scratch1/9/eliu354/driftflowworld}"
 ENV_PREFIX="${ARTIFACT_ROOT}/envs/pace-cu128-py312-v1"
+export PYTHONNOUSERSITE=1
 
 mkdir -p "${ARTIFACT_ROOT}/envs" "${ARTIFACT_ROOT}/cache/conda_pkgs" "${ARTIFACT_ROOT}/cache/pip"
 

@@ -18,6 +18,7 @@ export HF_HOME=${ARTIFACT_ROOT}/cache/huggingface
 export TORCH_HOME=${ARTIFACT_ROOT}/cache/torch
 export WANDB_DIR=${ARTIFACT_ROOT}/runs/wandb
 export WANDB_MODE=offline
+export PYTHONNOUSERSITE=1
 cd "${REPO_ROOT}/driftworld"
 "${ENV_PREFIX}/bin/torchrun" --standalone --nproc_per_node=2 main_train.py \
     --config-name=pushT_driftflow \

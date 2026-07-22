@@ -16,6 +16,8 @@ dependencies:
       - hydra-core
       - wandb
       - huggingface-hub
+      - "hf-xet>=1.5.1,<2"
+      - "regex!=2019.12.17"
       - pytest
       # Data and tensor utilities
       # zarr: any 3.x works. Tested with 3.1.6.

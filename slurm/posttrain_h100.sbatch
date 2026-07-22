@@ -19,6 +19,7 @@ CONFIGS=(pushT_driftworld_continue pushT_driftflow)
 export HF_HOME=${ARTIFACT_ROOT}/cache/huggingface
 export TORCH_HOME=${ARTIFACT_ROOT}/cache/torch
 export WANDB_DIR=${ARTIFACT_ROOT}/runs/wandb
+export PYTHONNOUSERSITE=1
 cd "${REPO_ROOT}/driftworld"
 "${ENV_PREFIX}/bin/torchrun" --standalone --nproc_per_node=2 main_train.py \
     --config-name="${CONFIGS[${SLURM_ARRAY_TASK_ID}]}"

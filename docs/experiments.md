@@ -24,6 +24,11 @@ checkpoints were prepared under the same scratch root. W&B project:
 | B0 | queued smoke (`11362770`) | Push-T 64-frame + full / first 10, then locked 1000 videos | `docs/manifests/baseline.yaml` | H100, `embers` | official step 1180500 / `/storage/scratch1/9/eliu354/driftflowworld/runs/metrics/driftworld-official-smoke` | eval-only | MSE, SSIM, PSNR, LPIPS, latency | Validate pipeline on 10 videos before locked run. |
 | B1 | planned | GPC timing / dev seeds 0:25 | `docs/manifests/baseline.yaml` | H100 | official + policies ep100/ep300 | eval-only | IoU, 50/100/200 proposal latency, peak memory | Defines matched budgets. |
 
+Locked paper references (1000 seeds, one H100): 64-frame MSE 0.0007, SSIM 0.9925,
+PSNR 33.7753, LPIPS 0.0050, 0.0037 seconds/frame; full-episode MSE 0.0018,
+SSIM 0.9846, PSNR 31.6612, LPIPS 0.0146, 0.0045 seconds/frame. GPC-RANK with 50
+proposals reports IoU 0.781/0.734 for policies 1/2 and 0.912 seconds planning time.
+
 ## Q2 — Does arbitrary-time post-training create useful NFE scaling?
 
 | ID | Status | Task / seed | Manifest | GPU | Parent -> output | W&B | Metrics | Decision |
