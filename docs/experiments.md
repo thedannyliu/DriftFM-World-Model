@@ -28,8 +28,8 @@ checkpoints were prepared under the same scratch root. W&B project:
 
 | ID | Status | Task / seed | Manifest | GPU | Parent -> output | W&B | Metrics | Decision |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| T0 | planned | continued DriftWorld, 100k updates / 1 | `docs/manifests/posttrain.yaml` | 2x H100 | official -> control | `driftflowworld-pusht` | val loss and rollout metrics | Matched-update control. |
-| T1 | planned | DriftFlowWorld, 100k updates / 1 | `docs/manifests/posttrain.yaml` | 2x H100 | official -> DFM | `driftflowworld-pusht` | NFE 1/2/4 metrics and block-pose error | Apply transport gate. |
+| T0 | queued (`11362985_0`, gated) | continued DriftWorld, 100k updates / 1 | `docs/manifests/posttrain.yaml` | 2x H100, `embers` | official -> control | `driftflowworld-pusht` | val loss and rollout metrics | Starts only after S0b, S1 resume, and B0 smoke pass. |
+| T1 | queued (`11362985_1`, gated) | DriftFlowWorld, 100k updates / 1 | `docs/manifests/posttrain.yaml` | 2x H100, `embers` | official -> DFM | `driftflowworld-pusht` | NFE 1/2/4 metrics and block-pose error | Apply transport gate after matched training. |
 
 ## Q3 — Where should a fixed planning budget be spent?
 
