@@ -17,7 +17,7 @@ checkpoints were prepared under the same scratch root. W&B project:
 | S0b | complete (`11362958`) | synthetic non-endpoint backward / 1 | `docs/manifests/smoke.yaml` | L40S, `embers` | commit `2092617` -> `/storage/scratch1/9/eliu354/driftflowworld/runs/smoke/model-11362958.json` | disabled | endpoint fraction 0; loss 8.99309; peak 2.98 GB; endpoint diff 0; NFE1/4 shapes correct | Arbitrary-time GPU gate passes. |
 | S1 | complete (`11362747`; load `11362969`) | Push-T two-step train then no-op load / 1 | `docs/manifests/smoke.yaml` | 2x L40S, `embers` | official -> `/storage/scratch1/9/eliu354/driftflowworld/checkpoints/smoke-ddp` | offline run `ghri4aqo`, same ID on load | losses 8.73815/8.98508; latest step 1; load restored step 2 in 19 s | DDP, checkpoint load, and W&B ID reuse pass; no-op load alone does not establish next-step equivalence. |
 | S2 | queued (`11364127`) | uninterrupted 3 steps vs 2 + resume to 3 / 1 | `docs/manifests/smoke.yaml` | 2x L40S, `embers` | official -> job-scoped continuous/resumed outputs | offline, resumed arm reuses one ID | exact model/optimizer/scheduler/RNG checkpoint equality | Validate per-rank RNG and DataLoader isolation before formal post-training. |
-| S3 | queued (`11364620_2`) | one-video NFE=4 pose-metric smoke / 1 | `docs/manifests/smoke.yaml` | L40S, `embers` | S1 checkpoint -> `/storage/scratch1/9/eliu354/driftflowworld/runs/metrics/pose-smoke` | eval-only | pixel metrics plus frozen-predictor final-block proxy | Validate the task-aligned metric path only; not a method comparison. |
+| S3 | running (`11364620_2`) | one-video NFE=4 pose-metric smoke / 1 | `docs/manifests/smoke.yaml` | L40S, `embers` | S1 checkpoint -> `/storage/scratch1/9/eliu354/driftflowworld/runs/metrics/pose-smoke` | eval-only | pixel metrics plus frozen-predictor final-block proxy | Validate the task-aligned metric path only; not a method comparison. |
 
 ## Q1 — Is the released DriftWorld result reproduced?
 
@@ -37,8 +37,10 @@ proposals reports IoU 0.781/0.734 for policies 1/2 and 0.912 seconds planning ti
 
 | ID | Status | Task / seed | Manifest | GPU | Parent -> output | W&B | Metrics | Decision |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| T0 | queued (`11362985_0`, gated) | continued DriftWorld, 100k updates / 1 | `docs/manifests/posttrain.yaml` | 2x H100, `embers` | official -> control | `driftflowworld-pusht` | val loss and rollout metrics | Starts only after B0 and exact-resume S2 pass. |
-| T1 | queued (`11362985_1`, gated) | DriftFlowWorld, 100k updates / 1 | `docs/manifests/posttrain.yaml` | 2x H100, `embers` | official -> DFM | `driftflowworld-pusht` | NFE 1/2/4 metrics and block-pose error | Starts only after B0 and exact-resume S2 pass; then apply transport gate. |
+| T0p/T1p | queued (`11364799_[0-1]`, gated) | matched control/DriftFlowWorld pilot, 10k updates / 1 | `docs/manifests/posttrain.yaml` | 2x H100 each, `embers` | official -> control/DFM | `driftflowworld-pusht` | training loss and time-pair statistics | Starts only after B0 and exact-resume S2 pass. |
+| E0p | queued (`11364806`, gated) | 25-video control pilot eval / 1 | `docs/manifests/posttrain.yaml` | H100, `embers` | T0p -> `runs/metrics/pilot10k-control` | eval-only | 64/full pixel metrics | Stable 10k checkpoint comparison. |
+| E1p | queued (`11364808_[0-2]`, gated) | 25-video Drift Flow pilot eval, NFE 1/2/4 / 1 | `docs/manifests/posttrain.yaml` | H100 each, `embers` | T1p -> `runs/metrics/pilot10k-driftflow` | eval-only | pixel and frozen-predictor block-pose metrics | Early direction check; not the locked transport claim. |
+| T0/T1 | queued (`11362985_[0-1]`, gated) | matched control/DriftFlowWorld resume to 100k / 1 | `docs/manifests/posttrain.yaml` | 2x H100 each, `embers` | T0p/T1p -> final control/DFM | same pilot W&B runs | training loss, then locked rollout metrics | Starts only after all 10k pilot evaluations finish, preserving stable evaluated checkpoints. |
 
 ## Q3 — Where should a fixed planning budget be spent?
 
