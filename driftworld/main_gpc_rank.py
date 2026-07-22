@@ -21,7 +21,9 @@ def main(cfg: DictConfig):
     end_number_test = cfg.get("end_number_test", 50)
 
     log.info(f"Evaluating test seeds [{start_number_test}, {end_number_test})")
-    run_gpc_rank(cfg, num_trial=50, num_parallel=50,
+    num_trial = cfg.get("planning", {}).get("num_proposals", 50)
+    num_parallel = cfg.get("planning", {}).get("num_parallel", num_trial)
+    run_gpc_rank(cfg, num_trial=num_trial, num_parallel=num_parallel,
                   start_number_test=start_number_test, end_number_test=end_number_test)
     log.info("Done")
 

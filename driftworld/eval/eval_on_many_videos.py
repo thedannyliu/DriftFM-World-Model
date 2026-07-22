@@ -3,6 +3,8 @@ Evaluate visual quality metrics for DriftWorld on Push-T.
 """
 import time
 import logging
+import json
+import os
 import numpy as np
 import torch
 from omegaconf import OmegaConf
@@ -15,7 +17,7 @@ log = logging.getLogger(__name__)
 
 
 @torch.no_grad()
-def _rollout_autoregressive(denoiser, all_obs, all_act, n_history):
+def _rollout_autoregressive(denoiser, all_obs, all_act, n_history, nfe):
     """
     Autoregressive rollout: condition on the GT seed window and chain the model's own
     predictions. Returns (B, T, C, H, W), where frames 0..n_history-1 are GT and the rest predicted.
@@ -23,7 +25,7 @@ def _rollout_autoregressive(denoiser, all_obs, all_act, n_history):
     T = all_obs.shape[1]
     cur_state = all_obs[:, :n_history]  # (B, M, C, H, W) GT initial frames s_0..s_{M-1}
     actions = all_act[:, :T - 1]        # F = T-1 actions a_0..a_{T-2} -> output length T
-    return denoiser.sample_autoregressive(cur_state, actions)
+    return denoiser.sample_autoregressive(cur_state, actions, nfe=nfe)
 
 
 def _new_state():
@@ -58,6 +60,7 @@ def evaluate_on_many_videos(cfg, num_videos=1000, video_len=64, step=None):
 
     denoiser, device, _ = setup_model(cfg, step)
     n_history = denoiser.num_history_frames
+    nfe = cfg.get("eval", {}).get("nfe", 1)
     log.info(f"num_history_steps (history frames excluded from frame metrics): {n_history}")
 
     # Full-length episode vs fixed-length windows
@@ -85,7 +88,7 @@ def evaluate_on_many_videos(cfg, num_videos=1000, video_len=64, step=None):
         if torch.cuda.is_available():
             torch.cuda.synchronize()
         _t0 = time.perf_counter()
-        gen = _rollout_autoregressive(denoiser, all_obs, all_act, n_history)  # (B, T, C, H, W) in [-1, 1]
+        gen = _rollout_autoregressive(denoiser, all_obs, all_act, n_history, nfe)  # (B, T, C, H, W) in [-1, 1]
         if torch.cuda.is_available():
             torch.cuda.synchronize()
         batch_gen_time = time.perf_counter() - _t0
@@ -139,8 +142,28 @@ def evaluate_on_many_videos(cfg, num_videos=1000, video_len=64, step=None):
         log.info("[summary] no videos were evaluated")
         return
 
+    summary = {
+        "num_videos": len(s["mse"]),
+        "video_len": video_len,
+        "nfe": nfe,
+        "mse": float(np.mean(s["mse"])),
+        "ssim": float(np.mean(s["ssim"])),
+        "psnr": float(np.mean(s["psnr"])),
+        "lpips": float(np.mean(s["lpips"])),
+        "total_generation_seconds": s["total_gen_time"],
+        "generated_frames": s["total_gen_frames"],
+        "seconds_per_frame": tpf,
+    }
+    metrics_dir = cfg.get("eval", {}).get("metrics_dir", f"{cfg.output_dir}/metrics")
+    os.makedirs(metrics_dir, exist_ok=True)
+    length_name = "full" if full_mode else str(video_len)
+    metrics_path = os.path.join(metrics_dir, f"rollout_len-{length_name}_nfe-{nfe}.json")
+    with open(metrics_path, "w") as f:
+        json.dump(summary, f, indent=2)
+    log.info(f"Wrote summary to {metrics_path}")
     log.info(
         f"[summary] per-video averages over {len(s['mse'])} videos: "
         f"MSE={np.mean(s['mse']):.5f} SSIM={np.mean(s['ssim']):.5f} PSNR={np.mean(s['psnr']):.5f} "
         f"LPIPS={np.mean(s['lpips']):.5f}"
     )
+    return summary

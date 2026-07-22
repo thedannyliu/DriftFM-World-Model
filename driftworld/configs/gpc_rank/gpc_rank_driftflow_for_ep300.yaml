@@ -1,0 +1,28 @@
+defaults:
+  - gpc_rank_driftworld_for_ep300
+  - _self_
+
+model:
+  dir_name: gpc_rank_driftflow_for_ep300
+  objective: drift_flow
+  drift_flow:
+    endpoint_replay_probability: 0.25
+    time_sampling: logit_normal
+    time_mu: -0.4
+    time_sigma: 1.0
+
+ckpt:
+  policy_checkpoint: /storage/scratch1/9/eliu354/driftflowworld/checkpoints/official/pusht_checkpoints/diffusion_policy_gpc
+  world_model_checkpoint: /storage/scratch1/9/eliu354/driftflowworld/checkpoints/pushT_driftflow_posttrain_seed1/ckpt-latest.pth
+  reward_predictor_xy_checkpoint: /storage/scratch1/9/eliu354/driftflowworld/checkpoints/official/pusht_checkpoints/reward/reward_predictor_xy.pth
+  reward_predictor_angle_checkpoint: /storage/scratch1/9/eliu354/driftflowworld/checkpoints/official/pusht_checkpoints/reward/reward_predictor_angle.pth
+
+planning:
+  strategy: coarse_to_fine
+  num_proposals: 100
+  num_parallel: 50
+  nfe: 1
+  refine_nfe: 4
+  refine_ratio: 0.2
+
+output_dir: /storage/scratch1/9/eliu354/driftflowworld/runs/gpc/${model.dir_name}/${planning.strategy}

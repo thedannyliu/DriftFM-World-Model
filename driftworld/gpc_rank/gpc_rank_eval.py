@@ -26,6 +26,34 @@ from gpc_rank.pusht_env import PushTImageEnv
 
 log = logging.getLogger(__name__)
 
+
+def rollout_world_model(denoiser, cur_state, actions, nfe, num_parallel, noise_schedule):
+    chunks = []
+    for start_idx in range(0, cur_state.shape[0], num_parallel):
+        end_idx = min(start_idx + num_parallel, cur_state.shape[0])
+        chunk_noise = [noise[start_idx:end_idx] for noise in noise_schedule]
+        chunks.append(
+            denoiser.sample_autoregressive(
+                cur_state=cur_state[start_idx:end_idx],
+                actions=actions[start_idx:end_idx],
+                nfe=nfe,
+                noise_schedule=chunk_noise,
+            )
+        )
+    return torch.cat(chunks, dim=0)
+
+
+def score_predictions(pred_images, reward_xy, reward_angle, target_pose):
+    rewards = []
+    for last_image in pred_images[:, -1]:
+        unnormalized_xy = reward_xy(last_image.unsqueeze(0))[0]
+        cossin_angle = reward_angle(last_image.unsqueeze(0))[0]
+        cossin_angle = cossin_angle / torch.linalg.vector_norm(cossin_angle).clamp_min(1e-8)
+        block_angle = torch.atan2(cossin_angle[1], cossin_angle[0]) % (2 * torch.pi)
+        block_pose = torch.stack((unnormalized_xy[0], unnormalized_xy[1], block_angle))
+        rewards.append(estimate_reward_torch(block_pose, target_pose).item())
+    return np.asarray(rewards)
+
 def setup_world_model(cfg, filepath):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     log.info("Creating model")
@@ -79,6 +107,13 @@ def run_gpc_rank(cfg, num_trial, num_parallel, start_number_test, end_number_tes
     output_dir = f"{cfg.output_dir}/num_trial_{num_trial}_seeds_{start_number_test}_{end_number_test}"
     resize_scale = cfg.data.resize_scale
     action_dim = 2
+    planning = cfg.get("planning", {})
+    strategy = planning.get("strategy", "uniform_breadth")
+    nfe = planning.get("nfe", 1)
+    refine_nfe = planning.get("refine_nfe", 4)
+    refine_ratio = planning.get("refine_ratio", 0.2)
+    if strategy not in {"uniform_breadth", "uniform_depth", "coarse_to_fine"}:
+        raise ValueError(f"Unknown planning strategy: {strategy}")
     os.makedirs(output_dir, exist_ok=True)
 
     log.info(f"Loading diffusion policy from {cfg.ckpt.policy_checkpoint}")
@@ -241,6 +276,7 @@ def run_gpc_rank(cfg, num_trial, num_parallel, start_number_test, end_number_tes
                     action = action_mean + 1.01 * (action - action_mean)
                     action = np.swapaxes(action,0,1) # new shape: (num_trials, time, action_dim)
 
+                    all_reward_candidate = []
                     if len(pred_imgs) > 0:
                         # seed window: last K frames s_(t-cur_idx), ..., s_t. Left-pad by repeating the
                         # earliest available frame if fewer than K frames have accumulated yet.
@@ -268,56 +304,69 @@ def run_gpc_rank(cfg, num_trial, num_parallel, start_number_test, end_number_tes
                         log.info(f"call multi-history world model with {num_trial} trials in chunks of {num_parallel}")
                         start_time = time.perf_counter()
 
-                        pred_images_chunks = []
-                        for start_idx in range(0, num_trial, num_parallel):
-                            end_idx = min(start_idx + num_parallel, num_trial)
-                            cur_state_chunk = cur_state[start_idx:end_idx]
-                            action_chunk = denoiser_input_action[start_idx:end_idx]
+                        noise_schedule = nets["denoiser"].create_noise_schedule(
+                            cur_state, denoiser_input_action
+                        )
+                        initial_nfe = 1 if strategy == "coarse_to_fine" else nfe
+                        if device.type == "cuda":
+                            torch.cuda.synchronize()
+                        pred_images = rollout_world_model(
+                            nets["denoiser"], cur_state, denoiser_input_action,
+                            initial_nfe, num_parallel, noise_schedule,
+                        )
+                        pred_images_for_score = pred_images
+                        if cfg.data.normalize_img:
+                            pred_images_for_score = (pred_images_for_score * 0.5) + 0.5
+                        all_reward_candidate = score_predictions(
+                            pred_images_for_score,
+                            reward_predictor_unnormalized_xy,
+                            reward_predictor_cossin_angle,
+                            target_pose,
+                        )
 
-                            pred_images_chunk = nets["denoiser"].sample_autoregressive(
-                                cur_state = cur_state_chunk,
-                                actions = action_chunk,
+                        if strategy == "coarse_to_fine":
+                            refine_count = min(
+                                num_trial,
+                                max(1, round(num_trial * refine_ratio)),
                             )
-                            pred_images_chunks.append(pred_images_chunk)
+                            refine_indices_np = np.argsort(
+                                all_reward_candidate, kind="stable"
+                            )[:refine_count]
+                            refine_indices = torch.as_tensor(refine_indices_np, device=device)
+                            refined_noise = [
+                                noise.index_select(0, refine_indices) for noise in noise_schedule
+                            ]
+                            refined = rollout_world_model(
+                                nets["denoiser"],
+                                cur_state.index_select(0, refine_indices),
+                                denoiser_input_action.index_select(0, refine_indices),
+                                refine_nfe,
+                                num_parallel,
+                                refined_noise,
+                            )
+                            if cfg.data.normalize_img:
+                                refined = (refined * 0.5) + 0.5
+                            all_reward_candidate[refine_indices_np] = score_predictions(
+                                refined,
+                                reward_predictor_unnormalized_xy,
+                                reward_predictor_cossin_angle,
+                                target_pose,
+                            )
 
-                        pred_images = torch.cat(pred_images_chunks, dim=0)
-
-                        end_time = time.perf_counter()
-                        forward_pass_time = end_time - start_time
+                        if device.type == "cuda":
+                            torch.cuda.synchronize()
+                        forward_pass_time = time.perf_counter() - start_time
                         if test_index != start_number_test:
                             forward_pass_time_list.append(forward_pass_time)
-                            log.info(f"(demo {test_index}/{end_number_test-start_number_test}) call multi-history world model: {forward_pass_time} | running average {np.mean(forward_pass_time_list):.6f}")
+                            log.info(f"(demo {test_index}/{end_number_test-start_number_test}) planning: {forward_pass_time} | running average {np.mean(forward_pass_time_list):.6f}")
                         else:
-                            log.info(f"(demo {test_index}/{end_number_test-start_number_test}) call multi-history world model: {forward_pass_time}")
+                            log.info(f"(demo {test_index}/{end_number_test-start_number_test}) planning: {forward_pass_time}")
 
-                        if cfg.data.normalize_img:
-                            pred_images = (pred_images * 0.5) + 0.5
-
-                        pred_images = pred_images.detach().cpu().numpy()
+                        pred_images = pred_images_for_score.detach().cpu().numpy()
                         # pred_images is (num_trial, K + time, 3, 96, 96); drop the K seed frames.
                         pred_imgs = np.concatenate((pred_imgs, pred_images[:, K:]), axis=1)
 
                     #### NOTE GPC-RANK: evaluate and rank the num_trial candidate action trajectories that were simulated by the world model
-                    all_reward_candidate = [] # list to store the num_trial calculated rewards
-                    if len(pred_imgs) > 0:
-                        last_pred_image = torch.tensor(pred_imgs[:,-1], dtype=torch.float32, device=device)
-                            # shape (num_trial, 3, 96, 96), since it contains the final frame in each of the num_trial simulated video sequences
-
-                        for i in range(num_trial):
-                            unnormalized_xy = reward_predictor_unnormalized_xy(torch.unsqueeze(last_pred_image[i], 0))[0]
-                                # unnormalized_xy: predicted (x,y) coordinates of the T block
-                            cossin_angle = reward_predictor_cossin_angle(torch.unsqueeze(last_pred_image[i], 0))[0]
-                                # cossin_angle: predicted (cos(theta), sin(theta)) pair that represents the block's orientation
-
-                            cossin_angle = cossin_angle/torch.sqrt(cossin_angle[0]*cossin_angle[0] + cossin_angle[1]*cossin_angle[1])
-                            block_angle = torch.atan2(cossin_angle[1], cossin_angle[0]) % (2 * torch.pi) # recovers theta
-
-                            block_pose = torch.stack((unnormalized_xy[0], unnormalized_xy[1], block_angle))
-                            reward = estimate_reward_torch(block_pose, target_pose)
-                                # finds reward, which computes the sum of distances between the vertices of the predicted block and the target block
-                                # smaller value is better
-                            all_reward_candidate.append(reward.detach().cpu().numpy())
-
                     if len(all_reward_candidate) > 0: # RANKING STEP
                         pick_index = np.argsort(all_reward_candidate, kind="stable")[0]
                         action_pick = action[pick_index][:end] # best sequence

@@ -39,7 +39,11 @@ def setup_model(cfg, step):
     denoiser = create_model(cfg, device)
     log.info("Restoring ckpt")
     
-    filepath = f"{cfg.output_dir}/ckpt_save/ckpt-latest.pth" if step==None else f"{cfg.output_dir}/ckpt_save/ckpt-step{step}.pth"
+    configured_path = cfg.get("eval", {}).get("checkpoint")
+    if configured_path:
+        filepath = configured_path
+    else:
+        filepath = f"{cfg.output_dir}/ckpt_save/ckpt-latest.pth" if step==None else f"{cfg.output_dir}/ckpt_save/ckpt-step{step}.pth"
     if os.path.exists(filepath):
         ckpt = torch.load(filepath, weights_only=False)
         denoiser.load_state_dict(ckpt['model'])
