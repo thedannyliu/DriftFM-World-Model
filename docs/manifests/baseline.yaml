@@ -1,0 +1,10 @@
+experiment: driftworld-baseline-v1
+task: push_t
+seeds: 0:1000
+artifact_root: /storage/scratch1/9/eliu354/driftflowworld
+gpu: H100
+qos: embers
+account: gts-agarg35
+world_model_step: 1180500
+proposal_counts: [50, 100, 200]
+metrics: [mse, ssim, psnr, lpips, iou, latency_seconds, peak_memory_bytes]

@@ -1,0 +1,14 @@
+experiment: dfw-smoke-v1
+task: push_t
+seed: 1
+code_branch: research/driftflowworld-pusht
+artifact_root: /storage/scratch1/9/eliu354/driftflowworld
+environment: /storage/scratch1/9/eliu354/driftflowworld/envs/pace-cu128-py312-v1
+gpu: L40S
+qos: embers
+account: gts-agarg35-ideas_l40s
+wandb_project: driftflowworld-pusht
+checks:
+  - endpoint_equivalence
+  - finite_forward_backward
+  - two_gpu_ddp_resume

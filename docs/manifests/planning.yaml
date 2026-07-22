@@ -1,0 +1,13 @@
+experiment: breadth-depth-planning-v1
+task: push_t
+artifact_root: /storage/scratch1/9/eliu354/driftflowworld
+gpu: H100
+qos: embers
+account: gts-agarg35
+development_seeds: 0:25
+locked_seeds: 0:100
+policies: [ep100, ep300]
+nfe: [1, 4]
+coarse_to_fine_ratios: [0.1, 0.2, 0.4]
+bootstrap_samples: 10000
+primary_metric: paired_final_iou_delta

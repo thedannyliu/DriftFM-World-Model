@@ -216,3 +216,16 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# DriftFlowWorld local research artifacts
+docs/*.pdf
+artifacts/
+data/
+checkpoints/
+runs/
+slurm_logs/
+wandb/
+driftworld/pusht_data/
+driftworld/pusht_checkpoints/
+driftworld/outputs/
+*.sbatch.local
