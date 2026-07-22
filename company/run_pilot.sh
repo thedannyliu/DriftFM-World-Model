@@ -58,7 +58,8 @@ else
     echo "[pilot] init_checkpoint=${INIT_CHECKPOINT}"
 fi
 set +e
-"${ENV_PREFIX}/bin/torchrun" --standalone --nproc_per_node="${GPUS_PER_NODE}" main_train.py \
+"${ENV_PREFIX}/bin/python" -m torch.distributed.run \
+    --standalone --nproc_per_node="${GPUS_PER_NODE}" main_train.py \
     --config-name="${CONFIG}" \
     train.seed="${SEED}" train.max_steps="${MAX_STEPS}" \
     train.init_checkpoint="${INIT_CHECKPOINT}" \

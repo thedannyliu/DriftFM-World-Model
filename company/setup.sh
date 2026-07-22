@@ -45,5 +45,5 @@ fi
 
 echo "[5/5] Verifying environment"
 "${ENV_PREFIX}/bin/python" -c \
-    'import huggingface_hub, json, numpy, torch, torchvision, zarr; print(json.dumps({"status":"ready","torch":torch.__version__,"torchvision":torchvision.__version__,"cuda":torch.version.cuda,"numpy":numpy.__version__,"zarr":zarr.__version__,"huggingface_hub":huggingface_hub.__version__,"gpu_count":torch.cuda.device_count()}))'
+    'import huggingface_hub, json, numpy, torch, torch.distributed.run, torchvision, zarr; print(json.dumps({"status":"ready","torch":torch.__version__,"torchvision":torchvision.__version__,"cuda":torch.version.cuda,"numpy":numpy.__version__,"zarr":zarr.__version__,"huggingface_hub":huggingface_hub.__version__,"distributed_launcher":True,"gpu_count":torch.cuda.device_count()}))'
 echo "setup_log=${SETUP_LOG}"

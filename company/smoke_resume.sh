@@ -36,7 +36,8 @@ run_train() {
     echo "[smoke] start arm=${label} max_steps=${max_steps} output=${output_dir}"
     cd "${REPO_ROOT}/driftworld"
     set +e
-    "${ENV_PREFIX}/bin/torchrun" --standalone --nproc_per_node="${GPUS_PER_NODE}" \
+    "${ENV_PREFIX}/bin/python" -m torch.distributed.run \
+        --standalone --nproc_per_node="${GPUS_PER_NODE}" \
         main_train.py --config-name=pushT_driftflow \
         train.max_steps="${max_steps}" train.ckpt_every=1 \
         train.init_checkpoint="${INIT_CHECKPOINT}" \
