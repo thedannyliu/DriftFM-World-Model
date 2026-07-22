@@ -31,6 +31,13 @@ if ! "${ENV_PREFIX}/bin/python" -m pip install -r "${REPO_ROOT}/company/requirem
     echo "Environment installation failed; full log: ${SETUP_LOG}" >&2
     exit 1
 fi
+echo "[3/5] Installing Hydra runtime overlay into the venv"
+if ! "${ENV_PREFIX}/bin/python" -m pip install --ignore-installed --no-deps \
+    omegaconf==2.3.0 antlr4-python3-runtime==4.9.3 \
+    2>&1 | tee -a "${SETUP_LOG}"; then
+    echo "Hydra runtime overlay failed; full log: ${SETUP_LOG}" >&2
+    exit 1
+fi
 
 export HF_HOME=${ASSET_ROOT}/cache/huggingface
 export TORCH_HOME=${ASSET_ROOT}/cache/torch
