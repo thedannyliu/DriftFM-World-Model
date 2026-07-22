@@ -29,17 +29,19 @@ Then run:
 bash company/setup.sh
 ```
 
-The command is idempotent. It creates a Python environment, installs
-`company/requirements.txt`, and downloads only the required Push-T data and weights
+Run this inside the company image
+`ngc24.06-ub22-py3.10-cu12.5-cudnn9.1-pytorch2.4-deepspeed0.14-8packing`.
+The command is idempotent. It creates a Python 3.10 virtual environment that inherits
+the image's PyTorch 2.4 and torchvision packages, installs only the remaining packages
+from `company/requirements.txt`, and downloads the required Push-T data and weights
 from Hugging Face. To download or repair assets without reinstalling the environment:
 
 ```bash
-/user-volume/driftworld/envs/driftfm-py312/bin/python company/prepare_assets.py
+/user-volume/driftworld/envs/driftfm-ngc24.06-py310/bin/python company/prepare_assets.py
 ```
 
-If the company image already manages Python packages, set
-`DRIFTFLOWWORLD_ENV_PREFIX` to that environment. Dependency installation respects
-`PIP_INDEX_URL` and other company pip-mirror settings.
+Dependency installation respects `PIP_INDEX_URL` and other company pip-mirror
+settings. Do not install a separate PyTorch or CUDA wheel into this environment.
 
 Set `WANDB_API_KEY` through the company secret manager. Optionally set
 `WANDB_ENTITY` and `WANDB_PROJECT`; credentials are never written by these scripts.

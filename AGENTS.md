@@ -121,6 +121,10 @@ generated metric arrays.
 Keep all company-specific requirements, paths, and launchers under `company/`; do not
 put them in the core `driftworld/` implementation or its default configs.
 
+- Required company container image:
+  `ngc24.06-ub22-py3.10-cu12.5-cudnn9.1-pytorch2.4-deepspeed0.14-8packing`.
+  Company environments must inherit its Python 3.10, PyTorch 2.4, torchvision, and
+  CUDA 12.5 packages; do not install a separate PyTorch/CUDA wheel stack.
 - Company code checkout: `/user-volume/repo/`.
 - Company datasets and model weights: `/group-volume/danny-dataset/driftworld/`.
 - Company environments, logs, W&B files, and generated result summaries:

@@ -4,7 +4,7 @@ set -euo pipefail
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 ASSET_ROOT=${DRIFTFLOWWORLD_ASSET_ROOT:-/group-volume/danny-dataset/driftworld}
 RUNTIME_ROOT=${DRIFTFLOWWORLD_RUNTIME_ROOT:-/user-volume/driftworld}
-ENV_PREFIX=${DRIFTFLOWWORLD_ENV_PREFIX:-${RUNTIME_ROOT}/envs/driftfm-py312}
+ENV_PREFIX=${DRIFTFLOWWORLD_ENV_PREFIX:-${RUNTIME_ROOT}/envs/driftfm-ngc24.06-py310}
 PYTHON_BIN=${PYTHON_BIN:-python3}
 SETUP_LOG=${RUNTIME_ROOT}/logs/setup.log
 export PIP_CACHE_DIR=${RUNTIME_ROOT}/cache/pip
@@ -13,7 +13,8 @@ export XDG_CACHE_HOME=${RUNTIME_ROOT}/cache
 mkdir -p "${ASSET_ROOT}" "${RUNTIME_ROOT}/logs" "${RUNTIME_ROOT}/results" \
     "${PIP_CACHE_DIR}"
 if [[ ! -x "${ENV_PREFIX}/bin/python" ]]; then
-    "${PYTHON_BIN}" -m venv "${ENV_PREFIX}"
+    "${PYTHON_BIN}" -c 'import torch, torchvision; assert torch.__version__.split("+")[0].startswith("2.4."), torch.__version__'
+    "${PYTHON_BIN}" -m venv --system-site-packages "${ENV_PREFIX}"
 fi
 
 if ! "${ENV_PREFIX}/bin/python" -m pip install -r "${REPO_ROOT}/company/requirements.txt" \
@@ -34,5 +35,5 @@ if ! "${ENV_PREFIX}/bin/python" "${REPO_ROOT}/company/prepare_assets.py" \
 fi
 
 "${ENV_PREFIX}/bin/python" -c \
-    'import json, torch; print(json.dumps({"status":"ready","torch":torch.__version__,"cuda":torch.version.cuda,"gpu_count":torch.cuda.device_count()}))'
+    'import json, numpy, torch, torchvision, zarr; print(json.dumps({"status":"ready","torch":torch.__version__,"torchvision":torchvision.__version__,"cuda":torch.version.cuda,"numpy":numpy.__version__,"zarr":zarr.__version__,"gpu_count":torch.cuda.device_count()}))'
 echo "setup_log=${SETUP_LOG}"
