@@ -6,7 +6,7 @@
 #SBATCH --gres=gpu:h100:2
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=192G
-#SBATCH --time=48:00:00
+#SBATCH --time=08:00:00
 #SBATCH --array=0-1%2
 #SBATCH --output=/storage/scratch1/9/eliu354/driftflowworld/slurm_logs/%x-%A_%a.out
 #SBATCH --error=/storage/scratch1/9/eliu354/driftflowworld/slurm_logs/%x-%A_%a.err
