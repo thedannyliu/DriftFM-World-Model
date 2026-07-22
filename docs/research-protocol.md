@@ -60,6 +60,12 @@ uniform versus logit-normal time sampling, endpoint replay 0.25 versus 0.5, 16 v
 32 particles, and released drift versus grouped Sinkhorn drift, using 25k-update pilots.
 Do not expand to Robomimic until the Push-T planning gate passes.
 
+Block-pose error is a frozen-predictor proxy, not simulator ground truth: the released
+GPC-RANK xy and angle predictors estimate the T-block pose from both the generated and
+ground-truth final frame. Report xy L2, circular angle error, and the released
+vertex-distance reward between those two estimates. The identical predictor on both
+sides controls estimator bias while keeping the metric aligned with planning.
+
 ## Breadth-depth protocol
 
 Calibrate end-to-end H100 latency for 50, 100, and 200 one-step proposals. Compare:

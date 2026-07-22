@@ -7,7 +7,7 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "driftworld"))
 
-from eval.eval_on_many_videos import _summarize_state, _warm_up_rollout
+from eval.eval_on_many_videos import _block_pose_errors, _summarize_state, _warm_up_rollout
 
 
 class _NoiseRollout:
@@ -48,3 +48,14 @@ def test_warmup_preserves_noise_stream():
     _warm_up_rollout(_NoiseRollout(), obs, action, n_history=2, nfe=1)
 
     torch.testing.assert_close(torch.randn_like(obs), expected, rtol=0, atol=0)
+
+
+def test_block_pose_error_uses_circular_angle_distance():
+    gen_pose = torch.tensor([3.0, 4.0, torch.pi - 0.1])
+    gt_pose = torch.tensor([0.0, 0.0, -torch.pi + 0.1])
+
+    errors = _block_pose_errors(gen_pose, gt_pose)
+
+    assert errors["final_block_xy_l2"] == pytest.approx(5.0)
+    assert errors["final_block_angle_abs_rad"] == pytest.approx(0.2)
+    assert errors["final_block_vertex_error"] > 0

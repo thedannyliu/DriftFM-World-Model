@@ -35,3 +35,5 @@ eval:
   nfe: 1
   num_videos: 1000
   metrics_dir: /storage/scratch1/9/eliu354/driftflowworld/runs/metrics/${model.dir_name}
+  reward_predictor_xy_checkpoint: /storage/scratch1/9/eliu354/driftflowworld/checkpoints/official/pusht_checkpoints/reward/reward_predictor_xy.pth
+  reward_predictor_angle_checkpoint: /storage/scratch1/9/eliu354/driftflowworld/checkpoints/official/pusht_checkpoints/reward/reward_predictor_angle.pth
