@@ -22,6 +22,7 @@ checkpoints were prepared under the same scratch root. W&B project:
 | ID | Status | Task / seed(s) | Manifest | GPU | Checkpoint / output | W&B | Metrics | Decision |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | B0 | queued smoke (`11362770`) | Push-T 64-frame + full / first 10, then locked 1000 videos | `docs/manifests/baseline.yaml` | H100, `embers` | official step 1180500 / `/storage/scratch1/9/eliu354/driftflowworld/runs/metrics/driftworld-official-smoke` | eval-only | MSE, SSIM, PSNR, LPIPS, latency | Validate pipeline on 10 videos before locked run. |
+| B0a | queued smoke (`11363556`) | Push-T 64-frame + full / first 2 | `docs/manifests/baseline.yaml` | L40S, `embers` | official step 1180500 / `/storage/scratch1/9/eliu354/driftflowworld/runs/metrics/driftworld-official-l40s-smoke` | eval-only | MSE, SSIM, PSNR, LPIPS; latency diagnostic only | Exercise the complete evaluation pipeline while B0 waits for H100; do not compare L40S latency with the paper. |
 | B1 | planned | GPC timing / dev seeds 0:25 | `docs/manifests/baseline.yaml` | H100 | official + policies ep100/ep300 | eval-only | IoU, 50/100/200 proposal latency, peak memory | Defines matched budgets. |
 
 Locked paper references (1000 seeds, one H100): 64-frame MSE 0.0007, SSIM 0.9925,
