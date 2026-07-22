@@ -115,3 +115,25 @@ the sibling `data/`, `checkpoints/`, `runs/`, `cache/`, and `slurm_logs/` direct
 Create the environment with `scripts/create_pace_env.sh`; its `pip-freeze.txt` is
 written beside the environment. Never commit datasets, checkpoints, credentials, or
 generated metric arrays.
+
+## Company Execution Environment
+
+Keep all company-specific requirements, paths, and launchers under `company/`; do not
+put them in the core `driftworld/` implementation or its default configs.
+
+- Company code checkout: `/user-volume/repo/`.
+- Company datasets and model weights: `/group-volume/danny-dataset/driftworld/`.
+- Company environments, logs, W&B files, and generated result summaries:
+  `/user-volume/driftworld/`.
+- Company workers may pull this GitHub repository and Hugging Face assets and may log
+  runs to W&B. They must never push commits, branches, tags, artifacts, or results to
+  GitHub.
+- Other external websites may be unavailable. Asset preparation must use Hugging Face;
+  dependency installation should respect any company package mirror configuration.
+- Company environment dependencies are maintained directly in
+  `company/requirements.txt`, separate from the PACE environment.
+- Current company pilot capacity is two independent nodes with four H100 GPUs each.
+  Use single-node four-process DDP per arm and keep global batch size matched across
+  control and Drift Flow runs.
+- Full logs stay on the company volume. Command-line launchers must print only concise,
+  pasteable status or metric summaries so results can be transferred back manually.
