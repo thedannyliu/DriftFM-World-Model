@@ -15,7 +15,7 @@ written as a zero.
 
 | ID | Status | Task / seed(s) | Manifest | GPU | Checkpoint / output | W&B | Metrics | Decision |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| B0 | planned | Push-T 64-frame + full / locked 1000 videos | `docs/manifests/baseline.yaml` | H100 | official step 1180500 / scratch metrics | eval-only | MSE, SSIM, PSNR, LPIPS, latency | Apply protocol tolerances. |
+| B0 | queued smoke (`11362770`) | Push-T 64-frame + full / first 10, then locked 1000 videos | `docs/manifests/baseline.yaml` | H100, `embers` | official step 1180500 / `/storage/scratch1/9/eliu354/driftflowworld/runs/metrics/driftworld-official-smoke` | eval-only | MSE, SSIM, PSNR, LPIPS, latency | Validate pipeline on 10 videos before locked run. |
 | B1 | planned | GPC timing / dev seeds 0:25 | `docs/manifests/baseline.yaml` | H100 | official + policies ep100/ep300 | eval-only | IoU, 50/100/200 proposal latency, peak memory | Defines matched budgets. |
 
 ## Q2 — Does arbitrary-time post-training create useful NFE scaling?
