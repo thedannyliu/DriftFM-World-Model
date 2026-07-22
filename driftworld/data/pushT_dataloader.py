@@ -36,6 +36,7 @@ def get_pushT_loader(cfg, rank=0, world_size=1):
 
     combined_dataset = ConcatDataset(dataset_list)
 
+    loader_generator = torch.Generator().manual_seed(cfg.train.seed)
     if world_size > 1:
         sampler = DistributedSampler(
             combined_dataset,
@@ -50,7 +51,8 @@ def get_pushT_loader(cfg, rank=0, world_size=1):
             prefetch_factor=cfg.dataloader.prefetch_factor,
             sampler=sampler,
             pin_memory=cfg.dataloader.pin_memory,
-            persistent_workers=True
+            persistent_workers=True,
+            generator=loader_generator,
         )
     else:
         dataloader = torch.utils.data.DataLoader(
@@ -60,7 +62,8 @@ def get_pushT_loader(cfg, rank=0, world_size=1):
             prefetch_factor=cfg.dataloader.prefetch_factor,
             shuffle=True,
             pin_memory=cfg.dataloader.pin_memory,
-            persistent_workers=True
+            persistent_workers=True,
+            generator=loader_generator,
         )
     return dataloader
 

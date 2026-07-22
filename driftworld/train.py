@@ -43,7 +43,8 @@ def barrier(world_size):
         dist.barrier()
 
 
-def set_seed(seed):
+def set_seed(seed, rank=0):
+    seed = seed + rank
     if is_main():
         log.info(f"Seed {seed}")
     random.seed(seed)
@@ -75,6 +76,15 @@ def load_rng_state_dict(state):
         torch.cuda.set_rng_state_all(state['cuda'])
 
 
+def gather_rng_states(world_size):
+    local_state = rng_state_dict()
+    if world_size == 1:
+        return [local_state]
+    gathered = [None] * world_size
+    dist.all_gather_object(gathered, local_state)
+    return gathered
+
+
 def load_initial_model(model, state_dict):
     incompatible = model.load_state_dict(state_dict, strict=False)
     allowed_missing = all('time_embed.' in key for key in incompatible.missing_keys)
@@ -102,7 +112,7 @@ def train(cfg):
     if is_main():
         log.info(f"Using device: {device} | world_size={world_size}")
 
-    set_seed(cfg.train.seed)
+    set_seed(cfg.train.seed, rank)
 
     if is_main():
         log.info("Creating dataloader")
@@ -153,7 +163,15 @@ def train(cfg):
         optimizer.load_state_dict(ckpt['optimizer'])
         scheduler.load_state_dict(ckpt['scheduler'])
         actual_step = ckpt['step'] + 1
-        load_rng_state_dict(ckpt.get('rng_state'))
+        rank_states = ckpt.get('rng_state_by_rank')
+        if rank_states is not None:
+            if len(rank_states) != world_size:
+                raise RuntimeError(
+                    f"Checkpoint has {len(rank_states)} RNG states for world_size={world_size}"
+                )
+            load_rng_state_dict(rank_states[rank])
+        else:
+            load_rng_state_dict(ckpt.get('rng_state'))
         del ckpt
         if is_main():
             log.info(f"Restored from step {actual_step} ckpt")
@@ -259,6 +277,7 @@ def train(cfg):
                         log.info(f"{k}: {v}")
 
             if actual_step % cfg.train.ckpt_every == 0:
+                rng_states = gather_rng_states(world_size)
                 if is_main():
                     log.info(f"(epoch {epoch_idx}) Saving latest ckpt at step {actual_step}")
                     checkpoint = {
@@ -266,7 +285,7 @@ def train(cfg):
                         'model': inner.state_dict(),
                         'optimizer': optimizer.state_dict(),
                         'scheduler': scheduler.state_dict(),
-                        'rng_state': rng_state_dict(),
+                        'rng_state_by_rank': rng_states,
                     }
                     save_checkpoint_atomic(
                         checkpoint,
@@ -279,6 +298,7 @@ def train(cfg):
             break
 
     if max_steps is not None and actual_step > 0 and (actual_step - 1) % cfg.train.ckpt_every != 0:
+        rng_states = gather_rng_states(world_size)
         if is_main():
             log.info(f"Saving final checkpoint at step {actual_step - 1}")
             checkpoint = {
@@ -286,7 +306,7 @@ def train(cfg):
                 'model': inner.state_dict(),
                 'optimizer': optimizer.state_dict(),
                 'scheduler': scheduler.state_dict(),
-                'rng_state': rng_state_dict(),
+                'rng_state_by_rank': rng_states,
             }
             save_checkpoint_atomic(
                 checkpoint,
