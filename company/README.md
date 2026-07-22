@@ -34,11 +34,16 @@ Run this inside the company image
 The command is idempotent. It creates a Python 3.10 virtual environment that inherits
 the image's PyTorch 2.4 and torchvision packages, installs only the remaining packages
 from `company/requirements.txt`, and downloads the required Push-T data and weights
-from Hugging Face. To download or repair assets without reinstalling the environment:
+from Hugging Face. Downloads use a 120-second read timeout, retry transient failures,
+and resume files already present. To download or repair assets without reinstalling
+the environment:
 
 ```bash
 /user-volume/driftworld/envs/driftfm-ngc24.06-py310/bin/python company/prepare_assets.py
 ```
+
+Setup stages, package installation, download progress, and retries are shown in the
+terminal. The same output is retained in `/user-volume/driftworld/logs/setup.log`.
 
 Dependency installation respects `PIP_INDEX_URL` and other company pip-mirror
 settings. Do not install a separate PyTorch or CUDA wheel into this environment.

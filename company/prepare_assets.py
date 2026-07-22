@@ -3,9 +3,15 @@
 
 import argparse
 import json
+import os
+import time
 from pathlib import Path
 
+os.environ.setdefault("HF_HUB_DOWNLOAD_TIMEOUT", "120")
+os.environ.setdefault("HF_HUB_ETAG_TIMEOUT", "30")
+
 from huggingface_hub import snapshot_download
+from requests import RequestException
 
 
 MODEL_PATTERNS = [
@@ -15,6 +21,30 @@ MODEL_PATTERNS = [
     "pusht_checkpoints/diffusion_policy_v1/ckpt_save/ckpt-ep100.pth",
     "pusht_checkpoints/diffusion_policy_v1/ckpt_save/ckpt-ep300.pth",
 ]
+
+
+def download_snapshot(*, label: str, local_dir: Path, attempts: int = 5, **kwargs):
+    """Download serially and resume after transient company-network failures."""
+    for attempt in range(1, attempts + 1):
+        for metadata_dir in (
+            local_dir / ".huggingface",
+            local_dir / ".cache" / "huggingface",
+        ):
+            metadata_dir.mkdir(parents=True, exist_ok=True)
+        print(f"[download] {label}: attempt {attempt}/{attempts}", flush=True)
+        try:
+            result = snapshot_download(local_dir=local_dir, max_workers=1, **kwargs)
+            print(f"[download] {label}: complete", flush=True)
+            return result
+        except (RequestException, OSError) as error:
+            if attempt == attempts:
+                raise
+            delay = min(2 ** attempt, 30)
+            print(
+                f"[download] {label}: {type(error).__name__}; retrying in {delay}s",
+                flush=True,
+            )
+            time.sleep(delay)
 
 
 def main():
@@ -33,13 +63,15 @@ def main():
     data_root.mkdir(parents=True, exist_ok=True)
     cache_root.mkdir(parents=True, exist_ok=True)
 
-    snapshot_download(
+    download_snapshot(
+        label="official checkpoints",
         repo_id="Susie-Lu/driftworld",
         local_dir=model_root,
         cache_dir=cache_root,
         allow_patterns=MODEL_PATTERNS,
     )
-    snapshot_download(
+    download_snapshot(
+        label="Push-T dataset",
         repo_id="han2019/gpc_pushT_data",
         repo_type="dataset",
         local_dir=data_root,
