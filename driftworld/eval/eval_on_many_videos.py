@@ -37,6 +37,26 @@ def _new_state():
     }
 
 
+def _summarize_state(s, video_len, nfe):
+    tpf = (s["total_gen_time"] / s["total_gen_frames"]
+           if s["total_gen_frames"] > 0 else float('nan'))
+    return {
+        "num_videos": len(s["mse"]),
+        "video_len": video_len,
+        "nfe": nfe,
+        "mse": float(np.mean(s["mse"])),
+        "ssim": float(np.mean(s["ssim"])),
+        "psnr": float(np.mean(s["psnr"])),
+        "lpips": float(np.mean(s["lpips"])),
+        "total_generation_seconds": s["total_gen_time"],
+        "generated_frames": s["total_gen_frames"],
+        "seconds_per_frame": tpf,
+        "per_video": {
+            name: list(s[name]) for name in ("mse", "ssim", "psnr", "lpips")
+        },
+    }
+
+
 def evaluate_on_many_videos(cfg, num_videos=1000, video_len=64, step=None):
     """
     Evaluate visual quality metrics for DriftWorld on generated videos of length video_len.
@@ -142,18 +162,7 @@ def evaluate_on_many_videos(cfg, num_videos=1000, video_len=64, step=None):
         log.info("[summary] no videos were evaluated")
         return
 
-    summary = {
-        "num_videos": len(s["mse"]),
-        "video_len": video_len,
-        "nfe": nfe,
-        "mse": float(np.mean(s["mse"])),
-        "ssim": float(np.mean(s["ssim"])),
-        "psnr": float(np.mean(s["psnr"])),
-        "lpips": float(np.mean(s["lpips"])),
-        "total_generation_seconds": s["total_gen_time"],
-        "generated_frames": s["total_gen_frames"],
-        "seconds_per_frame": tpf,
-    }
+    summary = _summarize_state(s, video_len, nfe)
     metrics_dir = cfg.get("eval", {}).get("metrics_dir", f"{cfg.output_dir}/metrics")
     os.makedirs(metrics_dir, exist_ok=True)
     length_name = "full" if full_mode else str(video_len)
