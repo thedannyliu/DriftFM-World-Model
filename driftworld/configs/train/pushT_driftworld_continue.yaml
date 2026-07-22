@@ -1,0 +1,26 @@
+defaults:
+  - pushT_driftworld
+  - _self_
+
+model:
+  dir_name: pushT_driftworld_continue_seed1
+  objective: driftworld
+
+train:
+  seed: 1
+  max_steps: 100000
+  init_checkpoint: /storage/scratch1/9/eliu354/driftflowworld/checkpoints/official/pusht_checkpoints/pushT_driftworld/ckpt_save/ckpt-step1180500.pth
+
+opt:
+  lr: 0.0000025
+
+data:
+  dataset_path_dir: /storage/scratch1/9/eliu354/driftflowworld/data/world_model_data/dataset_domain/all_data
+
+wandb_info:
+  entity: null
+  project: driftflowworld-pusht
+  name: driftworld-continue-seed1
+  key: null
+
+output_dir: /storage/scratch1/9/eliu354/driftflowworld/checkpoints/${model.dir_name}

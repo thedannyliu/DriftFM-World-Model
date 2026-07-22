@@ -8,10 +8,15 @@ import logging
 from collections import defaultdict
 import copy
 import math
+from typing import TYPE_CHECKING, Any
 
-from data import Batch
 from unet_multi.unet_configs import UNet_model_dict
 from drifting.drift_loss_indep import drift_loss
+
+if TYPE_CHECKING:
+    from data import Batch
+else:
+    Batch = Any
 
 log = logging.getLogger(__name__)
 
@@ -26,14 +31,29 @@ class Denoiser(nn.Module):
                  num_future_frames: int, # number of future frames to predict
                  num_history_frames: int, # number current+history frames to condition on
                  decay: float, # EMA decay
+                 objective: str = "driftworld",
+                 endpoint_replay_probability: float = 0.25,
+                 time_sampling: str = "logit_normal",
+                 time_mu: float = -0.4,
+                 time_sigma: float = 1.0,
                  ) -> None:
         super().__init__()
-        self.inner_model = UNet_model_dict[unet_name](num_history=num_history_frames) # U-Net
+        if objective not in {"driftworld", "drift_flow"}:
+            raise ValueError(f"Unknown objective: {objective}")
+        self.objective = objective
+        self.inner_model = UNet_model_dict[unet_name](
+            num_history=num_history_frames,
+            time_conditioning=objective == "drift_flow",
+        ) # U-Net
         self.temp_list = temp_list
         self.n_neg = n_neg
         self.num_future_frames = num_future_frames
         self.num_history_frames = num_history_frames
         self.decay = decay
+        self.endpoint_replay_probability = endpoint_replay_probability
+        self.time_sampling = time_sampling
+        self.time_mu = time_mu
+        self.time_sigma = time_sigma
         self.ema_model = copy.deepcopy(self.inner_model)
         self.ema_model.requires_grad_(False)
 
@@ -52,6 +72,24 @@ class Denoiser(nn.Module):
 
         loss, info = drift_loss(gen=gen_flat, fixed_pos=pos_flat, R_list=self.temp_list)
         return loss.mean(), info
+
+    def _sample_time_pairs(self, batch_size, device):
+        if self.time_sampling == "uniform":
+            endpoints = torch.rand((batch_size, 2), device=device)
+        elif self.time_sampling == "logit_normal":
+            endpoints = torch.sigmoid(
+                torch.randn((batch_size, 2), device=device) * self.time_sigma + self.time_mu
+            )
+        else:
+            raise ValueError(f"Unknown time sampling: {self.time_sampling}")
+
+        source = endpoints.min(dim=1).values
+        target = endpoints.max(dim=1).values
+        replay = torch.rand(batch_size, device=device) < self.endpoint_replay_probability
+        source = torch.where(replay, torch.zeros_like(source), source)
+        target = torch.where(replay, torch.ones_like(target), target)
+        delta = (target - source).clamp_min(1e-4)
+        return source, target, delta, replay
 
     def forward(self, batch: Batch, device):
         """
@@ -85,7 +123,24 @@ class Denoiser(nn.Module):
         # j = self.n_neg
         # gen: (j*b, c, n, h, w) generated samples, i.e. "negative" samples for drifting
         noise = torch.randn((self.n_neg * b, c, n, h, w), device=device)
-        gen = self.inner_model(noise, history, actions)
+        if self.objective == "drift_flow":
+            source_time, target_time, delta, replay = self._sample_time_pairs(b, device)
+            target_rep = target_x.repeat_interleave(self.n_neg, dim=0)
+            source_rep = source_time.repeat_interleave(self.n_neg).view(-1, 1, 1, 1, 1)
+            delta_rep = delta.repeat_interleave(self.n_neg).view(-1, 1, 1, 1, 1)
+            source_x = (1.0 - source_rep) * noise + source_rep * target_rep
+            time_pair = torch.stack((source_time, delta), dim=1).repeat_interleave(
+                self.n_neg, dim=0
+            )
+            endpoint = self.inner_model(source_x, history, actions, time_pair=time_pair)
+            gen = source_x + delta_rep * (endpoint - source_x)
+
+            positive_noise = torch.randn((b, c, n, h, w), device=device)
+            target_view = target_time.view(b, 1, 1, 1, 1)
+            positive_x = (1.0 - target_view) * positive_noise + target_view * target_x
+        else:
+            gen = self.inner_model(noise, history, actions)
+            positive_x = target_x
             # raw output from the U-Net. the inputs are
             # noise: (j*b, c, n, h, w) noise for future states s_(T+1), ..., s_(T+n)
             # history: (j*b, c, k, h, w) current+history states s_(T-k+1), ..., s_T
@@ -95,7 +150,7 @@ class Denoiser(nn.Module):
         loss = 0
         metrics = defaultdict(float)
         for i in range(n):
-            target_x_slice = target_x[:, :, i].reshape((b, 1, c, h, w)) # (b, c, h, w) -> (b, 1, c, h, w)
+            target_x_slice = positive_x[:, :, i].reshape((b, 1, c, h, w)) # (b, c, h, w) -> (b, 1, c, h, w)
             gen_slice = gen[:, :, i].reshape((b, self.n_neg, c, h, w)) # (j*b, c, h, w) -> (b, j, c, h, w)
             loss_i, info_i = self.drifting_loss(gen_slice, target_x_slice)
             loss += loss_i
@@ -105,10 +160,15 @@ class Denoiser(nn.Module):
         loss /= n
         averages = {key: total / n for key, total in metrics.items()}
         averages['loss_backprop'] = loss.item()
+        if self.objective == "drift_flow":
+            averages['time/source_mean'] = source_time.mean().item()
+            averages['time/target_mean'] = target_time.mean().item()
+            averages['time/delta_mean'] = delta.mean().item()
+            averages['time/endpoint_fraction'] = replay.float().mean().item()
         return loss, averages
 
     @torch.no_grad()
-    def sample(self, history, actions):
+    def sample(self, history, actions, nfe=1, noise=None, time_grid=None):
         """
         Sample from DriftWorld (EMA weights, random-noise init).
         Args:
@@ -119,11 +179,56 @@ class Denoiser(nn.Module):
         """
         B, C, K, H, W = history.size()
         F = actions.shape[1]
-        init_tensor = torch.randn((B, C, F, H, W), device=history.device)
-        return self.ema_model(init_tensor, history, actions).permute(0, 2, 1, 3, 4)
+        if nfe < 1:
+            raise ValueError("nfe must be at least 1")
+        state = noise
+        if state is None:
+            state = torch.randn((B, C, F, H, W), device=history.device)
+        if state.shape != (B, C, F, H, W):
+            raise ValueError(f"noise has shape {state.shape}, expected {(B, C, F, H, W)}")
+
+        if self.objective == "driftworld":
+            if nfe != 1:
+                raise ValueError("The DriftWorld endpoint model only supports nfe=1")
+            state = self.ema_model(state, history, actions)
+        else:
+            if time_grid is None:
+                time_grid = torch.linspace(0.0, 1.0, nfe + 1, device=history.device)
+            else:
+                time_grid = torch.as_tensor(time_grid, device=history.device, dtype=state.dtype)
+                if time_grid.numel() != nfe + 1:
+                    raise ValueError("time_grid must contain nfe + 1 values")
+            for source, target in zip(time_grid[:-1], time_grid[1:]):
+                delta = target - source
+                if delta <= 0:
+                    raise ValueError("time_grid must be strictly increasing")
+                time_pair = torch.stack((source, delta)).expand(B, 2)
+                endpoint = self.ema_model(state, history, actions, time_pair=time_pair)
+                if source == 0 and target == 1:
+                    state = endpoint
+                else:
+                    state = state + delta * (endpoint - state)
+        return state.permute(0, 2, 1, 3, 4)
 
     @torch.no_grad()
-    def sample_autoregressive(self, cur_state, actions):
+    def create_noise_schedule(self, cur_state, actions, generator=None):
+        B, K, C, H, W = cur_state.size()
+        cur_idx = K - 1
+        future = actions.shape[1] - cur_idx
+        schedule = []
+        for start in range(0, future, self.num_future_frames):
+            frames = min(self.num_future_frames, future - start)
+            schedule.append(
+                torch.randn(
+                    (B, C, frames, H, W),
+                    device=cur_state.device,
+                    generator=generator,
+                )
+            )
+        return schedule
+
+    @torch.no_grad()
+    def sample_autoregressive(self, cur_state, actions, nfe=1, noise_schedule=None):
         """
         Sample autoregressively from DriftWorld (EMA weights, random-noise init).
         Args:
@@ -142,6 +247,8 @@ class Denoiser(nn.Module):
         n = self.num_future_frames
         F = actions.shape[1] - cur_idx # number of future frames to predict
         num_iter = math.ceil(F / n)
+        if noise_schedule is not None and len(noise_schedule) != num_iter:
+            raise ValueError(f"noise_schedule has {len(noise_schedule)} chunks, expected {num_iter}")
         log.info(f"Number future frames: F = {F}")
         log.info(f"Number of iterations: num_iter = {num_iter}")
 
@@ -155,7 +262,8 @@ class Denoiser(nn.Module):
             history_i = out[:, i*n : i*n + cur_idx + 1].permute(0, 2, 1, 3, 4) # (B, C, K, H, W)
             act_i = actions[:, cur_idx + i*n : cur_idx + (i+1)*n] # (B, n, 2)
 
-            gen = self.sample(history_i, act_i) # (B, n, C, H, W)
+            noise_i = None if noise_schedule is None else noise_schedule[i]
+            gen = self.sample(history_i, act_i, nfe=nfe, noise=noise_i) # (B, n, C, H, W)
 
             out[:, cur_idx + 1 + i*n : cur_idx + 1 + i*n + gen.shape[1]] = gen
         return out

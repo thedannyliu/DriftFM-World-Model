@@ -53,6 +53,46 @@ def set_seed(seed):
         torch.cuda.manual_seed(seed)
     return seed
 
+
+def rng_state_dict():
+    state = {
+        'python': random.getstate(),
+        'numpy': np.random.get_state(),
+        'torch': torch.get_rng_state(),
+    }
+    if torch.cuda.is_available():
+        state['cuda'] = torch.cuda.get_rng_state_all()
+    return state
+
+
+def load_rng_state_dict(state):
+    if not state:
+        return
+    random.setstate(state['python'])
+    np.random.set_state(state['numpy'])
+    torch.set_rng_state(state['torch'])
+    if torch.cuda.is_available() and 'cuda' in state:
+        torch.cuda.set_rng_state_all(state['cuda'])
+
+
+def load_initial_model(model, state_dict):
+    incompatible = model.load_state_dict(state_dict, strict=False)
+    allowed_missing = all('time_embed.' in key for key in incompatible.missing_keys)
+    if incompatible.unexpected_keys or not allowed_missing:
+        raise RuntimeError(
+            f"Incompatible initial checkpoint: missing={incompatible.missing_keys}, "
+            f"unexpected={incompatible.unexpected_keys}"
+        )
+    return incompatible.missing_keys
+
+
+def save_checkpoint_atomic(checkpoint, latest_path, second_latest_path):
+    temporary_path = f"{latest_path}.tmp"
+    torch.save(checkpoint, temporary_path)
+    if os.path.exists(latest_path):
+        os.replace(latest_path, second_latest_path)
+    os.replace(temporary_path, latest_path)
+
 def train(cfg):
     """
     Train model, given hydra config cfg. Multi-GPU via torchrun + DDP.
@@ -113,11 +153,21 @@ def train(cfg):
         optimizer.load_state_dict(ckpt['optimizer'])
         scheduler.load_state_dict(ckpt['scheduler'])
         actual_step = ckpt['step'] + 1
+        load_rng_state_dict(ckpt.get('rng_state'))
         del ckpt
         if is_main():
             log.info(f"Restored from step {actual_step} ckpt")
         if actual_step % len(dataloader) != 0:
             to_skip = True
+    elif cfg.train.get('init_checkpoint') and os.path.exists(cfg.train.init_checkpoint):
+        ckpt = torch.load(cfg.train.init_checkpoint, map_location="cpu", weights_only=False)
+        missing = load_initial_model(inner, ckpt['model'])
+        if is_main():
+            log.info(
+                f"Initialized from {cfg.train.init_checkpoint}; "
+                f"zero-initialized keys kept: {missing}"
+            )
+        del ckpt
     elif cfg.model.is_phase_2 == True and os.path.exists(cfg.path_ckpt_phase1):
         # Just started phase 2, so load from phase 1 checkpoint
         ckpt = torch.load(cfg.path_ckpt_phase1, map_location="cpu", weights_only=False)
@@ -129,7 +179,8 @@ def train(cfg):
 
     # Set up wandb run
     if is_main():
-        wandb.login(key=cfg.wandb_info.key)
+        if cfg.wandb_info.get('key'):
+            wandb.login(key=cfg.wandb_info.key)
         if not os.path.exists(cfg.wandb_info.saved_run_id):
             run = wandb.init(
                 entity=cfg.wandb_info.entity,
@@ -157,11 +208,13 @@ def train(cfg):
             )
 
         n_params = sum(p.numel() for p in inner.parameters() if p.requires_grad)
-        wandb.log({'num_params': n_params, 'seed': cfg.train.seed}, step=0)
+        wandb.log({'num_params': n_params, 'seed': cfg.train.seed}, step=actual_step)
     barrier(world_size)
 
     start_ep = actual_step // len(dataloader) + 1
     first_pass = True
+    max_steps = cfg.train.get('max_steps')
+    training_complete = False
     for epoch_idx in range(start_ep, cfg.train.num_epochs + 1):
         if world_size > 1 and isinstance(dataloader.sampler, DistributedSampler):
             dataloader.sampler.set_epoch(epoch_idx)
@@ -169,6 +222,9 @@ def train(cfg):
         if is_main():
             log.info(f"(epoch {epoch_idx}) start")
         for batch_idx, nbatch in enumerate(dataloader):
+            if max_steps is not None and actual_step >= max_steps:
+                training_complete = True
+                break
             # Reach actual_step by skipping forward in dataloader
             if to_skip:
                 cur_step = len(dataloader) * (epoch_idx - 1) + batch_idx
@@ -205,20 +261,39 @@ def train(cfg):
             if actual_step % cfg.train.ckpt_every == 0:
                 if is_main():
                     log.info(f"(epoch {epoch_idx}) Saving latest ckpt at step {actual_step}")
-                    if os.path.exists(cfg.path_ckpt_latest):
-                        try:
-                            os.replace(cfg.path_ckpt_latest, cfg.path_ckpt_2nd_latest)
-                        except Exception as e:
-                            log.info(f"Failed to move latest checkpoint to 2nd latest: {e}")
                     checkpoint = {
                         'step': actual_step,
                         'model': inner.state_dict(),
                         'optimizer': optimizer.state_dict(),
                         'scheduler': scheduler.state_dict(),
+                        'rng_state': rng_state_dict(),
                     }
-                    torch.save(checkpoint, cfg.path_ckpt_latest)
+                    save_checkpoint_atomic(
+                        checkpoint,
+                        cfg.path_ckpt_latest,
+                        cfg.path_ckpt_2nd_latest,
+                    )
                 barrier(world_size)
             actual_step += 1
+        if training_complete:
+            break
+
+    if max_steps is not None and actual_step > 0 and (actual_step - 1) % cfg.train.ckpt_every != 0:
+        if is_main():
+            log.info(f"Saving final checkpoint at step {actual_step - 1}")
+            checkpoint = {
+                'step': actual_step - 1,
+                'model': inner.state_dict(),
+                'optimizer': optimizer.state_dict(),
+                'scheduler': scheduler.state_dict(),
+                'rng_state': rng_state_dict(),
+            }
+            save_checkpoint_atomic(
+                checkpoint,
+                cfg.path_ckpt_latest,
+                cfg.path_ckpt_2nd_latest,
+            )
+        barrier(world_size)
 
     if world_size > 1 and dist.is_initialized():
         dist.destroy_process_group()

@@ -338,6 +338,7 @@ class UNetModel(nn.Module):
         use_scale_shift_norm=False,
         resblock_updown=False,
         num_history=4,
+        time_conditioning=False,
     ):
         super().__init__()
         self.image_size = image_size
@@ -353,6 +354,7 @@ class UNetModel(nn.Module):
         self.num_heads = num_heads
         self.num_head_channels = num_head_channels
         self.num_history = num_history
+        self.time_conditioning = time_conditioning
 
         # projection for action conditioning
         self.action_embed = nn.Sequential(
@@ -360,6 +362,14 @@ class UNetModel(nn.Module):
             nn.SiLU(),
             linear(action_proj, action_proj),
         )
+        if time_conditioning:
+            self.time_embed = nn.Sequential(
+                linear(2, action_proj),
+                nn.SiLU(),
+                linear(action_proj, action_proj),
+            )
+            nn.init.zeros_(self.time_embed[-1].weight)
+            nn.init.zeros_(self.time_embed[-1].bias)
 
         # Downsampling path (encoder): all its blocks are in self.input_blocks
         ch = input_ch = int(channel_mult[0] * model_channels) # initial number of channels
@@ -495,13 +505,14 @@ class UNetModel(nn.Module):
             conv_nd(dims, input_ch, out_channels, 3, padding=1),
         )
 
-    def forward(self, x, history, actions):
+    def forward(self, x, history, actions, time_pair=None):
         """
         :param x: [B, C, F, H, W] tensor of noisy future states s_(t+1), ..., s_(t+F)
             where B is batch size and F is number of video frames
         :param history: [B, C, K, H, W] tensor of the K current+history states
             s_(t-K+1), ..., s_t
         :param actions: [B, F, action_in] tensor of actions a_t, ..., a_(t+F-1)
+        :param time_pair: optional [B, 2] source-time and interval conditioning
         :return: [B, C, F, H, W] tensor of denoised future states s_(t+1), ..., s_(t+F)
 
         Note:
@@ -518,6 +529,11 @@ class UNetModel(nn.Module):
 
         hs = [] # store the output of every encoder layer. These are used for skip connections.
         emb = self.action_embed(actions) # (B, F, action_proj)
+        if self.time_conditioning:
+            if time_pair is None:
+                time_pair = x.new_tensor((0.0, 1.0)).expand(x.shape[0], 2)
+            time_emb = self.time_embed(time_pair.to(dtype=x.dtype))
+            emb = emb + time_emb[:, None, :]
 
         # downsampling path
         for module in self.input_blocks:

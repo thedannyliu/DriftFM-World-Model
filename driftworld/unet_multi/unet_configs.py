@@ -3,7 +3,7 @@ Configurations for the action-conditioned U-Net backbone of DriftWorld
 """
 from .unet_action import UNetModel
 
-def UNet_PushT(num_history=4):
+def UNet_PushT(num_history=4, time_conditioning=False):
     return UNetModel(
         image_size=(96, 96),
         in_channels=(num_history + 1) * 3,
@@ -22,6 +22,7 @@ def UNet_PushT(num_history=4):
         use_scale_shift_norm=True,
         resblock_updown=False,
         num_history=num_history,
+        time_conditioning=time_conditioning,
     )
 
 UNet_model_dict = {
