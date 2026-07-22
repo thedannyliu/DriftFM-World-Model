@@ -41,6 +41,8 @@ def main():
         repo_type="dataset",
         local_dir=data_root,
         cache_dir=cache_root,
+        allow_patterns="world_model_data/**",
+        max_workers=2,
     )
 
     expected = [
