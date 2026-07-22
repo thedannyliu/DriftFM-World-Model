@@ -21,7 +21,9 @@ export TORCH_HOME=${ASSET_ROOT}/cache/torch
 export PYTHONNOUSERSITE=1
 
 cd "${REPO_ROOT}/driftworld"
-echo "baseline_videos=${NUM_VIDEOS} full_log=${FULL_LOG}"
+echo "[baseline] videos=${NUM_VIDEOS} gpu=${CUDA_VISIBLE_DEVICES}"
+echo "[baseline] data=${DATA_DIR} checkpoint=${MODEL_DIR}/ckpt_save/ckpt-step1180500.pth"
+echo "[baseline] full_log=${FULL_LOG}"
 if ! "${ENV_PREFIX}/bin/python" main_eval_metrics.py --config-name=pushT_driftworld \
     data.dataset_path_dir="${DATA_DIR}" output_dir="${MODEL_DIR}" \
     +eval.num_videos="${NUM_VIDEOS}" +eval.metrics_dir="${METRICS_DIR}" \
@@ -32,3 +34,4 @@ if ! "${ENV_PREFIX}/bin/python" main_eval_metrics.py --config-name=pushT_driftwo
 fi
 "${ENV_PREFIX}/bin/python" "${REPO_ROOT}/company/summarize_eval.py" \
     --baseline-dir "${METRICS_DIR}"
+echo "[baseline] status=complete full_log=${FULL_LOG}"

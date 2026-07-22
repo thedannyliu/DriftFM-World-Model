@@ -22,6 +22,8 @@ export HF_HOME=${ASSET_ROOT}/cache/huggingface
 export TORCH_HOME=${ASSET_ROOT}/cache/torch
 export PYTHONNOUSERSITE=1
 cd "${REPO_ROOT}/driftworld"
+echo "[eval] videos=${NUM_VIDEOS} seed=${SEED} logs=${LOG_DIR}"
+echo "[eval] gpu0=control gpu1=driftflow-nfe1 gpu2=driftflow-nfe2 gpu3=driftflow-nfe4"
 
 CUDA_VISIBLE_DEVICES=0 "${ENV_PREFIX}/bin/python" main_eval_metrics.py \
     --config-name=pushT_driftworld_continue \
@@ -54,6 +56,8 @@ for INDEX in "${!PIDS[@]}"; do
         echo "${NAMES[${INDEX}]} failed; last 30 log lines:" >&2
         tail -n 30 "${LOG_DIR}/${NAMES[${INDEX}]}.log" >&2
         FAILED=1
+    else
+        echo "[eval] complete ${NAMES[${INDEX}]}"
     fi
 done
 if (( FAILED )); then

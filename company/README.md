@@ -98,3 +98,7 @@ Terminal output is intentionally short JSON suitable for pasting back. Full logs
 under `/user-volume/driftworld/logs/`. Useful overrides include `MAX_STEPS`,
 `EVAL_NUM_VIDEOS`, `SEED`, `CUDA_VISIBLE_DEVICES`, `WANDB_ENTITY`, and
 `WANDB_PROJECT`.
+
+Training launchers print the resolved GPU, checkpoint, output, log, and W&B settings.
+Smoke runs print every loss/checkpoint event; pilot runs print every 100th loss plus
+checkpoint events. Any failed subprocess prints the last 40 full-log lines.

@@ -30,7 +30,12 @@ run_train() {
     local output_dir=$1
     local max_steps=$2
     local label=$3
+    local log_file=${LOG_DIR}/${label}-${max_steps}.log
+    local statuses
+    local train_status
+    echo "[smoke] start arm=${label} max_steps=${max_steps} output=${output_dir}"
     cd "${REPO_ROOT}/driftworld"
+    set +e
     "${ENV_PREFIX}/bin/torchrun" --standalone --nproc_per_node="${GPUS_PER_NODE}" \
         main_train.py --config-name=pushT_driftflow \
         train.max_steps="${max_steps}" train.ckpt_every=1 \
@@ -39,16 +44,33 @@ run_train() {
         dataloader.num_workers=2 output_dir="${output_dir}" \
         wandb_info.name="company-resume-${label}-${TIMESTAMP}" \
         hydra.run.dir="${LOG_DIR}/hydra-${label}-${max_steps}" \
-        >"${LOG_DIR}/${label}-${max_steps}.log" 2>&1
+        2>&1 | tee "${log_file}" | grep --line-buffered -E \
+        'Started new wandb|Resuming wandb|loss_backprop:|Saving latest ckpt|Saving final checkpoint'
+    statuses=("${PIPESTATUS[@]}")
+    set -e
+    train_status=${statuses[0]}
+    if (( train_status != 0 )); then
+        echo "[smoke] failed arm=${label} max_steps=${max_steps} exit=${train_status}; last 40 log lines:" >&2
+        tail -n 40 "${log_file}" >&2
+        exit "${train_status}"
+    fi
+    if [[ ! -f ${output_dir}/ckpt-latest.pth ]]; then
+        echo "[smoke] failed: checkpoint missing at ${output_dir}/ckpt-latest.pth" >&2
+        exit 1
+    fi
+    echo "[smoke] complete arm=${label} max_steps=${max_steps} checkpoint=${output_dir}/ckpt-latest.pth"
 }
 
-echo "resume_smoke_logs=${LOG_DIR}"
+echo "[smoke] gpus=${GPUS_PER_NODE} data=${DATA_DIR} init_checkpoint=${INIT_CHECKPOINT}"
+echo "[smoke] full_logs=${LOG_DIR}"
 run_train "${RUN_ROOT}/continuous" 3 continuous
 run_train "${RUN_ROOT}/resumed" 2 resumed
 run_train "${RUN_ROOT}/resumed" 3 resumed
 
 cd "${REPO_ROOT}"
+echo "[smoke] comparing uninterrupted and resumed checkpoints"
 "${ENV_PREFIX}/bin/python" scripts/compare_training_checkpoints.py \
     "${RUN_ROOT}/continuous/ckpt-latest.pth" \
     "${RUN_ROOT}/resumed/ckpt-latest.pth" \
     --world-size "${GPUS_PER_NODE}"
+echo "[smoke] status=complete full_logs=${LOG_DIR}"

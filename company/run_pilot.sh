@@ -50,7 +50,13 @@ if [[ -n ${WANDB_ENTITY:-} ]]; then
 fi
 
 cd "${REPO_ROOT}/driftworld"
-echo "role=${ROLE} full_log=${FULL_LOG}"
+echo "[pilot] role=${ROLE} gpus=${GPUS_PER_NODE} batch_per_gpu=${BATCH_PER_GPU} max_steps=${MAX_STEPS} seed=${SEED}"
+echo "[pilot] output=${OUTPUT_DIR} full_log=${FULL_LOG} wandb_project=${WANDB_PROJECT} wandb_run=${RUN_NAME}"
+if [[ -f ${OUTPUT_DIR}/ckpt-latest.pth ]]; then
+    echo "[pilot] resume_checkpoint=${OUTPUT_DIR}/ckpt-latest.pth"
+else
+    echo "[pilot] init_checkpoint=${INIT_CHECKPOINT}"
+fi
 set +e
 "${ENV_PREFIX}/bin/torchrun" --standalone --nproc_per_node="${GPUS_PER_NODE}" main_train.py \
     --config-name="${CONFIG}" \
@@ -59,8 +65,17 @@ set +e
     data.dataset_path_dir="${DATA_DIR}" data.batch_size="${BATCH_PER_GPU}" \
     dataloader.num_workers="${WORKERS_PER_GPU}" \
     output_dir="${OUTPUT_DIR}" hydra.run.dir="${LOG_DIR}/hydra" \
-    "${WANDB_ARGS[@]}" >"${FULL_LOG}" 2>&1
-STATUS=$?
+    "${WANDB_ARGS[@]}" 2>&1 | tee "${FULL_LOG}" | awk '
+        /Started new wandb|Resuming wandb|Saving latest ckpt|Saving final checkpoint/ {
+            print; fflush(); next
+        }
+        /loss_backprop:/ {
+            losses += 1
+            if (losses == 1 || losses % 100 == 0) { print; fflush() }
+        }
+    '
+PIPE_STATUSES=("${PIPESTATUS[@]}")
+STATUS=${PIPE_STATUSES[0]}
 set -e
 if (( STATUS != 0 )); then
     echo "Training failed with exit ${STATUS}; last 40 log lines:" >&2
