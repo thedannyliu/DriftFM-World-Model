@@ -17,10 +17,13 @@ ARTIFACT_ROOT=/storage/scratch1/9/eliu354/driftflowworld
 ENV_PREFIX=${ARTIFACT_ROOT}/envs/pace-cu128-py312-v1
 NFES=(1 2 4)
 NUM_VIDEOS=${EVAL_NUM_VIDEOS:-1000}
+CHECKPOINT=${EVAL_CHECKPOINT:-${ARTIFACT_ROOT}/checkpoints/pushT_driftflow_posttrain_seed1/ckpt-latest.pth}
+METRICS_DIR=${EVAL_METRICS_DIR:-${ARTIFACT_ROOT}/runs/metrics/pushT_driftflow_posttrain_seed1}
 export HF_HOME=${ARTIFACT_ROOT}/cache/huggingface
 export TORCH_HOME=${ARTIFACT_ROOT}/cache/torch
 export WANDB_DIR=${ARTIFACT_ROOT}/runs/wandb
 export PYTHONNOUSERSITE=1
 cd "${REPO_ROOT}/driftworld"
 "${ENV_PREFIX}/bin/python" main_eval_metrics.py --config-name=pushT_driftflow \
-    eval.nfe="${NFES[${SLURM_ARRAY_TASK_ID}]}" eval.num_videos="${NUM_VIDEOS}"
+    eval.nfe="${NFES[${SLURM_ARRAY_TASK_ID}]}" eval.num_videos="${NUM_VIDEOS}" \
+    eval.checkpoint="${CHECKPOINT}" eval.metrics_dir="${METRICS_DIR}"
