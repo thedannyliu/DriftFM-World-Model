@@ -22,6 +22,7 @@ def make_model(objective):
         num_history_frames=4,
         decay=0.999,
         objective=objective,
+        endpoint_replay_probability=0.0 if objective == "drift_flow" else 0.25,
     )
 
 

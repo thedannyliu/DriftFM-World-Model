@@ -8,7 +8,8 @@ written as a zero.
 
 | ID | Status | Task / seed | Manifest | GPU | Parent -> output | W&B | Metrics | Decision |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| S0 | queued (`11362493`) | synthetic forward / 1 | `docs/manifests/smoke.yaml` | L40S, `embers` | commit `5cf2855` -> `/storage/scratch1/9/eliu354/driftflowworld/runs/smoke/model-11362493.json` | disabled | Formal env: 5 tests passed; endpoint exact, variable NFE deterministic, backward finite. Data smoke: image `(1,8,3,96,96)`, action `(1,8,2)`, 16 Zarr datasets. GPU metrics pending. | Must pass before data jobs. |
+| S0 | complete (`11362493`) | synthetic endpoint / 1 | `docs/manifests/smoke.yaml` | L40S, `embers` | commit `5cf2855` -> `/storage/scratch1/9/eliu354/driftflowworld/runs/smoke/model-11362493.json` | disabled | Endpoint max diff 0; NFE1/4 `(1,4,3,96,96)`; loss 8.99987; peak 2.98 GB; sampled endpoint fraction 1.0. Formal env: 5 tests passed. Official ckpt: step 1180500, 8 expected missing time keys, 0 unexpected. | Endpoint gate passes; rerun fixed non-endpoint pair for GPU arbitrary-time coverage. |
+| S0b | planned | synthetic non-endpoint backward / 1 | `docs/manifests/smoke.yaml` | L40S, `embers` | current commit -> scratch JSON | disabled | endpoint fraction fixed to 0; loss finite; peak memory | Required before H100 training. |
 | S1 | queued (`11362747`, afterok `11362493`) | Push-T two-step train / 1 | `docs/manifests/smoke.yaml` | 2x L40S, `embers` | official -> `/storage/scratch1/9/eliu354/driftflowworld/checkpoints/smoke-ddp` | offline smoke, run ID persisted | loss finite, DDP sync, checkpoint/RNG/run ID; resume validation follows first pass | Must pass before H100 training. |
 
 ## Q1 — Is the released DriftWorld result reproduced?
