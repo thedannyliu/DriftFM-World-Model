@@ -15,6 +15,7 @@ REPO_ROOT=/storage/project/r-agarg35-0/eliu354/projects/driftworld
 ARTIFACT_ROOT=/storage/scratch1/9/eliu354/driftflowworld
 ENV_PREFIX=${ARTIFACT_ROOT}/envs/pace-cu128-py312-v1
 export HF_HOME=${ARTIFACT_ROOT}/cache/huggingface
+export TORCH_HOME=${ARTIFACT_ROOT}/cache/torch
 export WANDB_DIR=${ARTIFACT_ROOT}/runs/wandb
 cd "${REPO_ROOT}"
 "${ENV_PREFIX}/bin/python" scripts/smoke_model.py \

@@ -18,6 +18,7 @@ ENV_PREFIX=${ARTIFACT_ROOT}/envs/pace-cu128-py312-v1
 NFES=(1 2 4)
 NUM_VIDEOS=${EVAL_NUM_VIDEOS:-1000}
 export HF_HOME=${ARTIFACT_ROOT}/cache/huggingface
+export TORCH_HOME=${ARTIFACT_ROOT}/cache/torch
 export WANDB_DIR=${ARTIFACT_ROOT}/runs/wandb
 cd "${REPO_ROOT}/driftworld"
 "${ENV_PREFIX}/bin/python" main_eval_metrics.py --config-name=pushT_driftflow \

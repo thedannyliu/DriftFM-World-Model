@@ -30,6 +30,7 @@ if (( END_SEED > TOTAL_SEEDS )); then END_SEED=${TOTAL_SEEDS}; fi
 if (( START_SEED >= TOTAL_SEEDS )); then exit 0; fi
 
 export HF_HOME=${ARTIFACT_ROOT}/cache/huggingface
+export TORCH_HOME=${ARTIFACT_ROOT}/cache/torch
 export WANDB_DIR=${ARTIFACT_ROOT}/runs/wandb
 cd "${REPO_ROOT}/driftworld"
 "${ENV_PREFIX}/bin/python" main_gpc_rank.py --config-name="${CONFIG_NAME}" \
