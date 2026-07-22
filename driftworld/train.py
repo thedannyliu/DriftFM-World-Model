@@ -236,6 +236,9 @@ def train(cfg):
     max_steps = cfg.train.get('max_steps')
     training_complete = False
     for epoch_idx in range(start_ep, cfg.train.num_epochs + 1):
+        dataloader.generator.manual_seed(
+            cfg.train.seed + epoch_idx * world_size + rank
+        )
         if world_size > 1 and isinstance(dataloader.sampler, DistributedSampler):
             dataloader.sampler.set_epoch(epoch_idx)
 
