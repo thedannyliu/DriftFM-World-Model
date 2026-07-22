@@ -8,7 +8,7 @@ at runtime.
 
 - Clone the repository under `/user-volume/repo/`.
 - Store datasets and checkpoints under `/group-volume/danny-dataset/driftworld/`.
-- Store environments, full logs, W&B files, and result JSON under
+- Store package caches, full logs, W&B files, and result JSON under
   `/user-volume/driftworld/`.
 - Company machines may pull GitHub and Hugging Face and may log to W&B. They must not
   push to GitHub.
@@ -32,15 +32,15 @@ bash company/setup.sh
 
 Run this inside the company image
 `ngc24.06-ub22-py3.10-cu12.5-cudnn9.1-pytorch2.4-deepspeed0.14-8packing`.
-The command is idempotent. It creates a Python 3.10 virtual environment that inherits
-the image's PyTorch 2.4 and torchvision packages, installs only the remaining packages
-from `company/requirements.txt`, and downloads the required Push-T data and weights
-from Hugging Face. Downloads use a 120-second read timeout, retry transient failures,
-and resume files already present. To download or repair assets without reinstalling
-the environment:
+The command installs `company/requirements.txt` directly into the active container;
+the company workflow does not use venv or Conda. It preserves the image's PyTorch 2.4
+and torchvision packages and downloads the required Push-T data and weights from
+Hugging Face. Downloads use a 120-second read timeout, retry transient failures, and
+resume files already present. To download or repair assets without reinstalling
+packages:
 
 ```bash
-/user-volume/driftworld/envs/driftfm-ngc24.06-py310/bin/python company/prepare_assets.py
+python3 company/prepare_assets.py
 ```
 
 Setup stages, package installation, download progress, and retries are shown in the
@@ -52,12 +52,15 @@ two Git LFS objects are downloaded through the authenticated Hub API. The token 
 in the user's Hugging Face login store and is never copied into the shared asset root.
 
 Dependency installation respects `PIP_INDEX_URL` and other company pip-mirror
-settings. Do not install a separate PyTorch or CUDA wheel into this environment.
-Setup force-installs the small OmegaConf/ANTLR runtime overlay into the venv because
-the NGC image may expose package metadata without importable modules.
-Company launchers prepend the venv site-packages to the container's existing
-`PYTHONPATH`; this keeps venv packages authoritative without hiding NGC runtime
-dependencies.
+settings. Do not install a separate PyTorch or CUDA wheel into the container. Setup
+force-installs the Hydra and W&B runtime dependency closures
+because the NGC image may expose package metadata without importable modules.
+
+On additional nodes sharing already-prepared assets, skip asset work with:
+
+```bash
+DRIFTFLOWWORLD_SKIP_ASSETS=1 bash company/setup.sh
+```
 
 Set `WANDB_API_KEY` through the company secret manager. Optionally set
 `WANDB_ENTITY` and `WANDB_PROJECT`; credentials are never written by these scripts.

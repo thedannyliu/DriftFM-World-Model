@@ -4,8 +4,7 @@ set -euo pipefail
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 ASSET_ROOT=${DRIFTFLOWWORLD_ASSET_ROOT:-/group-volume/danny-dataset/driftworld}
 RUNTIME_ROOT=${DRIFTFLOWWORLD_RUNTIME_ROOT:-/user-volume/driftworld}
-ENV_PREFIX=${DRIFTFLOWWORLD_ENV_PREFIX:-${RUNTIME_ROOT}/envs/driftfm-ngc24.06-py310}
-export PYTHONPATH="${ENV_PREFIX}/lib/python3.10/site-packages${PYTHONPATH:+:${PYTHONPATH}}"
+PYTHON_BIN=${PYTHON_BIN:-python3}
 GPUS_PER_NODE=${GPUS_PER_NODE:-4}
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 RUN_ROOT=${ASSET_ROOT}/checkpoints/smoke/resume-equivalence-${TIMESTAMP}
@@ -24,7 +23,6 @@ export HF_HOME=${ASSET_ROOT}/cache/huggingface
 export TORCH_HOME=${ASSET_ROOT}/cache/torch
 export WANDB_DIR=${RUNTIME_ROOT}/wandb
 export WANDB_MODE=offline
-export PYTHONNOUSERSITE=1
 
 run_train() {
     local output_dir=$1
@@ -36,7 +34,7 @@ run_train() {
     echo "[smoke] start arm=${label} max_steps=${max_steps} output=${output_dir}"
     cd "${REPO_ROOT}/driftworld"
     set +e
-    "${ENV_PREFIX}/bin/python" -m torch.distributed.run \
+    "${PYTHON_BIN}" -m torch.distributed.run \
         --standalone --nproc_per_node="${GPUS_PER_NODE}" \
         main_train.py --config-name=pushT_driftflow \
         train.max_steps="${max_steps}" train.ckpt_every=1 \
@@ -69,7 +67,7 @@ echo "[smoke] gpus=${GPUS_PER_NODE} data=${DATA_DIR} init_checkpoint=${INIT_CHEC
 echo "[smoke] full_logs=${LOG_DIR}"
 echo "[smoke] dependency preflight"
 cd "${REPO_ROOT}/driftworld"
-"${ENV_PREFIX}/bin/python" -c \
+"${PYTHON_BIN}" -c \
     'import hydra, omegaconf, torch, wandb, zarr; import train, utils_model; print("[smoke] dependency_preflight=pass")'
 run_train "${RUN_ROOT}/continuous" 3 continuous
 run_train "${RUN_ROOT}/resumed" 2 resumed
@@ -77,7 +75,7 @@ run_train "${RUN_ROOT}/resumed" 3 resumed
 
 cd "${REPO_ROOT}"
 echo "[smoke] comparing uninterrupted and resumed checkpoints"
-"${ENV_PREFIX}/bin/python" scripts/compare_training_checkpoints.py \
+"${PYTHON_BIN}" scripts/compare_training_checkpoints.py \
     "${RUN_ROOT}/continuous/ckpt-latest.pth" \
     "${RUN_ROOT}/resumed/ckpt-latest.pth" \
     --world-size "${GPUS_PER_NODE}"

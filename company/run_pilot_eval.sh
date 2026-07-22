@@ -4,8 +4,7 @@ set -euo pipefail
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 ASSET_ROOT=${DRIFTFLOWWORLD_ASSET_ROOT:-/group-volume/danny-dataset/driftworld}
 RUNTIME_ROOT=${DRIFTFLOWWORLD_RUNTIME_ROOT:-/user-volume/driftworld}
-ENV_PREFIX=${DRIFTFLOWWORLD_ENV_PREFIX:-${RUNTIME_ROOT}/envs/driftfm-ngc24.06-py310}
-export PYTHONPATH="${ENV_PREFIX}/lib/python3.10/site-packages${PYTHONPATH:+:${PYTHONPATH}}"
+PYTHON_BIN=${PYTHON_BIN:-python3}
 NUM_VIDEOS=${EVAL_NUM_VIDEOS:-25}
 SEED=${SEED:-1}
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
@@ -20,12 +19,11 @@ mkdir -p "${CONTROL_METRICS}" "${DRIFTFLOW_METRICS}" "${LOG_DIR}"
 
 export HF_HOME=${ASSET_ROOT}/cache/huggingface
 export TORCH_HOME=${ASSET_ROOT}/cache/torch
-export PYTHONNOUSERSITE=1
 cd "${REPO_ROOT}/driftworld"
 echo "[eval] videos=${NUM_VIDEOS} seed=${SEED} logs=${LOG_DIR}"
 echo "[eval] gpu0=control gpu1=driftflow-nfe1 gpu2=driftflow-nfe2 gpu3=driftflow-nfe4"
 
-CUDA_VISIBLE_DEVICES=0 "${ENV_PREFIX}/bin/python" main_eval_metrics.py \
+CUDA_VISIBLE_DEVICES=0 "${PYTHON_BIN}" main_eval_metrics.py \
     --config-name=pushT_driftworld_continue \
     data.dataset_path_dir="${DATA_DIR}" output_dir="${CONTROL_OUT}" \
     +eval.checkpoint="${CONTROL_OUT}/ckpt-latest.pth" \
@@ -37,7 +35,7 @@ NAMES=(control)
 for INDEX in 0 1 2; do
     NFE=$(( 2 ** INDEX ))
     GPU=$(( INDEX + 1 ))
-    CUDA_VISIBLE_DEVICES=${GPU} "${ENV_PREFIX}/bin/python" main_eval_metrics.py \
+    CUDA_VISIBLE_DEVICES=${GPU} "${PYTHON_BIN}" main_eval_metrics.py \
         --config-name=pushT_driftflow \
         data.dataset_path_dir="${DATA_DIR}" output_dir="${DRIFTFLOW_OUT}" \
         eval.checkpoint="${DRIFTFLOW_OUT}/ckpt-latest.pth" \
@@ -64,6 +62,6 @@ if (( FAILED )); then
     exit 1
 fi
 
-"${ENV_PREFIX}/bin/python" "${REPO_ROOT}/company/summarize_eval.py" \
+"${PYTHON_BIN}" "${REPO_ROOT}/company/summarize_eval.py" \
     --control-dir "${CONTROL_METRICS}" --driftflow-dir "${DRIFTFLOW_METRICS}"
 echo "full_logs=${LOG_DIR}"

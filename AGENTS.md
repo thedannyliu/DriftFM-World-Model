@@ -82,7 +82,9 @@ Default Slurm account for L40S work: `gts-agarg35-ideas_l40s`.
 
 Usually current node is home node, and don't have GPUs. GPU must be accessed from submitting a job.
 Don't do any GPU job, env setup at $HOME, keep it clean.
-Construct venv or conda env and record it in this doc, and develop on the virtual environment afterwards.
+Construct venv or conda env and record it in this doc, and develop on the virtual
+environment afterwards, except for the company container workflow explicitly defined
+below.
 
 SAM2 PoC environment (PACE CUDA 12.8):
 `/storage/scratch1/9/eliu354/sra_sam2/envs/pace-cu128-py312-v1`.
@@ -123,18 +125,20 @@ put them in the core `driftworld/` implementation or its default configs.
 
 - Required company container image:
   `ngc24.06-ub22-py3.10-cu12.5-cudnn9.1-pytorch2.4-deepspeed0.14-8packing`.
-  Company environments must inherit its Python 3.10, PyTorch 2.4, torchvision, and
-  CUDA 12.5 packages; do not install a separate PyTorch/CUDA wheel stack.
+  Use the active container directly: do not create a venv or Conda environment.
+  Install non-PyTorch dependencies with `python3 -m pip`; retain the image's Python
+  3.10, PyTorch 2.4, torchvision, and CUDA 12.5 stack, and never install a separate
+  PyTorch/CUDA wheel stack.
 - Company code checkout: `/user-volume/repo/`.
 - Company datasets and model weights: `/group-volume/danny-dataset/driftworld/`.
-- Company environments, logs, W&B files, and generated result summaries:
+- Company package caches, logs, W&B files, and generated result summaries:
   `/user-volume/driftworld/`.
 - Company workers may pull this GitHub repository and Hugging Face assets and may log
   runs to W&B. They must never push commits, branches, tags, artifacts, or results to
   GitHub.
 - Other external websites may be unavailable. Asset preparation must use Hugging Face;
   dependency installation should respect any company package mirror configuration.
-- Company environment dependencies are maintained directly in
+- Company container dependencies are maintained directly in
   `company/requirements.txt`, separate from the PACE environment.
 - Current company pilot capacity is two independent nodes with four H100 GPUs each.
   Use single-node four-process DDP per arm and keep global batch size matched across

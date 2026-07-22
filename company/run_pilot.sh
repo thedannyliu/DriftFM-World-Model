@@ -9,8 +9,7 @@ ROLE=$1
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 ASSET_ROOT=${DRIFTFLOWWORLD_ASSET_ROOT:-/group-volume/danny-dataset/driftworld}
 RUNTIME_ROOT=${DRIFTFLOWWORLD_RUNTIME_ROOT:-/user-volume/driftworld}
-ENV_PREFIX=${DRIFTFLOWWORLD_ENV_PREFIX:-${RUNTIME_ROOT}/envs/driftfm-ngc24.06-py310}
-export PYTHONPATH="${ENV_PREFIX}/lib/python3.10/site-packages${PYTHONPATH:+:${PYTHONPATH}}"
+PYTHON_BIN=${PYTHON_BIN:-python3}
 GPUS_PER_NODE=${GPUS_PER_NODE:-4}
 BATCH_PER_GPU=${BATCH_PER_GPU:-1}
 WORKERS_PER_GPU=${WORKERS_PER_GPU:-4}
@@ -42,7 +41,6 @@ export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0,1,2,3}
 export HF_HOME=${ASSET_ROOT}/cache/huggingface
 export TORCH_HOME=${ASSET_ROOT}/cache/torch
 export WANDB_DIR=${RUNTIME_ROOT}/wandb
-export PYTHONNOUSERSITE=1
 
 WANDB_ARGS=(wandb_info.project="${WANDB_PROJECT}" wandb_info.name="${RUN_NAME}")
 if [[ -n ${WANDB_ENTITY:-} ]]; then
@@ -51,7 +49,7 @@ fi
 
 cd "${REPO_ROOT}/driftworld"
 echo "[pilot] dependency preflight"
-"${ENV_PREFIX}/bin/python" -c \
+"${PYTHON_BIN}" -c \
     'import hydra, omegaconf, torch, wandb, zarr; import train, utils_model; print("[pilot] dependency_preflight=pass")'
 echo "[pilot] role=${ROLE} gpus=${GPUS_PER_NODE} batch_per_gpu=${BATCH_PER_GPU} max_steps=${MAX_STEPS} seed=${SEED}"
 echo "[pilot] output=${OUTPUT_DIR} full_log=${FULL_LOG} wandb_project=${WANDB_PROJECT} wandb_run=${RUN_NAME}"
@@ -61,7 +59,7 @@ else
     echo "[pilot] init_checkpoint=${INIT_CHECKPOINT}"
 fi
 set +e
-"${ENV_PREFIX}/bin/python" -m torch.distributed.run \
+"${PYTHON_BIN}" -m torch.distributed.run \
     --standalone --nproc_per_node="${GPUS_PER_NODE}" main_train.py \
     --config-name="${CONFIG}" \
     train.seed="${SEED}" train.max_steps="${MAX_STEPS}" \
@@ -90,5 +88,5 @@ if (( STATUS != 0 )); then
     exit "${STATUS}"
 fi
 
-"${ENV_PREFIX}/bin/python" "${REPO_ROOT}/company/summarize_checkpoint.py" \
+"${PYTHON_BIN}" "${REPO_ROOT}/company/summarize_checkpoint.py" \
     --role "${ROLE}" --output-dir "${OUTPUT_DIR}" --log "${FULL_LOG}"
