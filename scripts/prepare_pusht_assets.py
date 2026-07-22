@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import argparse
+import os
+import subprocess
 from pathlib import Path
 
 from huggingface_hub import snapshot_download
@@ -28,7 +30,7 @@ def main():
     model_root = root / "checkpoints" / "official"
     data_root = root / "data"
     cache_root = root / "cache" / "huggingface"
-    for path in (model_root, data_root, cache_root, root / "runs", root / "slurm_logs"):
+    for path in (model_root, cache_root, root / "runs", root / "slurm_logs"):
         path.mkdir(parents=True, exist_ok=True)
 
     snapshot_download(
@@ -36,13 +38,28 @@ def main():
         local_dir=model_root,
         cache_dir=cache_root,
     )
-    snapshot_download(
-        repo_id="han2019/gpc_pushT_data",
-        repo_type="dataset",
-        local_dir=data_root,
-        cache_dir=cache_root,
-        allow_patterns="world_model_data/**",
-        max_workers=2,
+    if not (data_root / ".git").exists():
+        if data_root.exists():
+            raise RuntimeError(f"Refusing to replace non-Git data directory: {data_root}")
+        environment = os.environ.copy()
+        environment["GIT_LFS_SKIP_SMUDGE"] = "1"
+        subprocess.run(
+            [
+                "git", "clone", "--depth", "1",
+                "https://huggingface.co/datasets/han2019/gpc_pushT_data",
+                str(data_root),
+            ],
+            check=True,
+            env=environment,
+        )
+    subprocess.run(
+        [
+            "git", "lfs", "pull",
+            "--include=world_model_data/**",
+            "--exclude=diffusion_policy_data/**",
+        ],
+        check=True,
+        cwd=data_root,
     )
 
     expected = [

@@ -8,7 +8,7 @@ written as a zero.
 
 | ID | Status | Task / seed | Manifest | GPU | Parent -> output | W&B | Metrics | Decision |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| S0 | planned | synthetic forward / 1 | `docs/manifests/smoke.yaml` | CPU then L40S | released architecture -> none | disabled | load keys, max abs NFE=1 diff, NFE output shapes | Must pass before data jobs. |
+| S0 | queued (`11362493`) | synthetic forward / 1 | `docs/manifests/smoke.yaml` | L40S, `embers` | commit `5cf2855` -> `/storage/scratch1/9/eliu354/driftflowworld/runs/smoke/model-11362493.json` | disabled | CPU unit: endpoint exact; variable NFE deterministic; backward finite. GPU metrics pending. | Must pass before data jobs. |
 | S1 | planned | Push-T one-row train / 1 | `docs/manifests/smoke.yaml` | 2x L40S | official -> smoke checkpoint | `driftflowworld-pusht` | loss finite, DDP sync, resume step/run ID | Must pass before training. |
 
 ## Q1 — Is the released DriftWorld result reproduced?
