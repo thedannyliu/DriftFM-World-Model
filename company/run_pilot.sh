@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+unset PYTHONPATH
 
 if [[ $# -ne 1 || ( $1 != control && $1 != driftflow ) ]]; then
     echo "Usage: $0 {control|driftflow}" >&2

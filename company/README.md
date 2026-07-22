@@ -26,6 +26,7 @@ cd /user-volume/repo/DriftFM-World-Model
 Then run:
 
 ```bash
+hf auth login
 bash company/setup.sh
 ```
 
@@ -45,7 +46,10 @@ the environment:
 Setup stages, package installation, download progress, and retries are shown in the
 terminal. The same output is retained in `/user-volume/driftworld/logs/setup.log`.
 Downloads use eight workers by default. Set `DRIFTFLOWWORLD_DOWNLOAD_WORKERS=16` for
-more throughput, or reduce it if the company CDN becomes unstable.
+more throughput; values above 16 are capped to avoid Hugging Face rate limits. The
+32,061-file Push-T dataset is fetched as one approximately 0.30 GiB Git pack, then the
+two Git LFS objects are downloaded through the authenticated Hub API. The token stays
+in the user's Hugging Face login store and is never copied into the shared asset root.
 
 Dependency installation respects `PIP_INDEX_URL` and other company pip-mirror
 settings. Do not install a separate PyTorch or CUDA wheel into this environment.
