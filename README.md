@@ -10,16 +10,15 @@ This codebase contains the official implementation for the DriftWorld paper.
 
 ### Setup and Checkpoints
 
-You can install the relevant libraries by running `conda env create -f driftworld/environment.yml`.
+You can install the relevant libraries by running `conda env create -f driftworld/environment.yml`. DriftWorld checkpoints can be downloaded at [this HuggingFace link](https://huggingface.co/Susie-Lu/driftworld). Currently it contains the Push-T DriftWorld checkpoints.
 
-| Link | Description |
+| Dataset | Code |
 |---|---|
-| [DriftWorld](https://huggingface.co/Susie-Lu/driftworld) | Pretrained checkpoints |
-| [Push-T Dataset](https://huggingface.co/datasets/han2019/gpc_pushT_data/tree/main/world_model_data) | Dataset for training on Push-T |
-| [Robomimic Dataset](https://huggingface.co/datasets/robomimic/robomimic_datasets/tree/main/v1.5) | Dataset for training on Robomimic |
-| [Bridge-V2](https://rail.eecs.berkeley.edu/datasets/bridge_release/data/tfds/bridge_dataset/) | Dataset for training on Bridge-V2 |
-| [RT-1](https://console.cloud.google.com/storage/browser/gresearch/robotics/fractal20220817_data/0.1.0) | Dataset for training on RT-1 |
-| [Language Table](https://huggingface.co/datasets/IPEC-COMMUNITY/language_table_lerobot/tree/main) | Dataset for training on Language Table |
+| [Push-T Dataset](https://huggingface.co/datasets/han2019/gpc_pushT_data/tree/main/world_model_data) | Code in [`driftworld`](https://github.com/Susie-Lu/driftworld/tree/main/driftworld) folder |
+| [Robomimic Dataset](https://huggingface.co/datasets/robomimic/robomimic_datasets/tree/main/v1.5) | Code will be added soon |
+| [Bridge-V2 Dataset](https://rail.eecs.berkeley.edu/datasets/bridge_release/data/tfds/bridge_dataset/) | Code will be added soon |
+| [RT-1 Dataset](https://console.cloud.google.com/storage/browser/gresearch/robotics/fractal20220817_data/0.1.0) | Code will be added soon |
+| [Language Table Dataset](https://huggingface.co/datasets/IPEC-COMMUNITY/language_table_lerobot/tree/main) | Code will be added soon |
 
 ### DriftWorld on Push-T
 The folder `driftworld` contains the code for training and evaluating DriftWorld on Push-T. Please put the pretrained checkpoints in the folder `driftworld/pusht_checkpoints`, and put the dataset in the folder `driftworld/pusht_data`.
