@@ -16,7 +16,7 @@ checkpoints were prepared under the same scratch root. W&B project:
 | S0 | complete (`11362493`) | synthetic endpoint / 1 | `docs/manifests/smoke.yaml` | L40S, `embers` | commit `5cf2855` -> `/storage/scratch1/9/eliu354/driftflowworld/runs/smoke/model-11362493.json` | disabled | Endpoint max diff 0; NFE1/4 `(1,4,3,96,96)`; loss 8.99987; peak 2.98 GB; sampled endpoint fraction 1.0. Formal env: 5 tests passed. Official ckpt: step 1180500, 8 expected missing time keys, 0 unexpected. | Endpoint gate passes; rerun fixed non-endpoint pair for GPU arbitrary-time coverage. |
 | S0b | complete (`11362958`) | synthetic non-endpoint backward / 1 | `docs/manifests/smoke.yaml` | L40S, `embers` | commit `2092617` -> `/storage/scratch1/9/eliu354/driftflowworld/runs/smoke/model-11362958.json` | disabled | endpoint fraction 0; loss 8.99309; peak 2.98 GB; endpoint diff 0; NFE1/4 shapes correct | Arbitrary-time GPU gate passes. |
 | S1 | complete (`11362747`; load `11362969`) | Push-T two-step train then no-op load / 1 | `docs/manifests/smoke.yaml` | 2x L40S, `embers` | official -> `/storage/scratch1/9/eliu354/driftflowworld/checkpoints/smoke-ddp` | offline run `ghri4aqo`, same ID on load | losses 8.73815/8.98508; latest step 1; load restored step 2 in 19 s | DDP, checkpoint load, and W&B ID reuse pass; no-op load alone does not establish next-step equivalence. |
-| S2 | planned | uninterrupted 3 steps vs 2 + resume to 3 / 1 | `docs/manifests/smoke.yaml` | 2x L40S, `embers` | official -> job-scoped continuous/resumed outputs | offline, resumed arm reuses one ID | exact model/optimizer/scheduler/RNG checkpoint equality | Validate per-rank RNG and DataLoader isolation before formal post-training. |
+| S2 | queued (`11364127`) | uninterrupted 3 steps vs 2 + resume to 3 / 1 | `docs/manifests/smoke.yaml` | 2x L40S, `embers` | official -> job-scoped continuous/resumed outputs | offline, resumed arm reuses one ID | exact model/optimizer/scheduler/RNG checkpoint equality | Validate per-rank RNG and DataLoader isolation before formal post-training. |
 
 ## Q1 — Is the released DriftWorld result reproduced?
 
@@ -36,8 +36,8 @@ proposals reports IoU 0.781/0.734 for policies 1/2 and 0.912 seconds planning ti
 
 | ID | Status | Task / seed | Manifest | GPU | Parent -> output | W&B | Metrics | Decision |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| T0 | queued (`11362985_0`, gated) | continued DriftWorld, 100k updates / 1 | `docs/manifests/posttrain.yaml` | 2x H100, `embers` | official -> control | `driftflowworld-pusht` | val loss and rollout metrics | Starts only after S0b, S1 resume, and B0 smoke pass. |
-| T1 | queued (`11362985_1`, gated) | DriftFlowWorld, 100k updates / 1 | `docs/manifests/posttrain.yaml` | 2x H100, `embers` | official -> DFM | `driftflowworld-pusht` | NFE 1/2/4 metrics and block-pose error | Apply transport gate after matched training. |
+| T0 | queued (`11362985_0`, gated) | continued DriftWorld, 100k updates / 1 | `docs/manifests/posttrain.yaml` | 2x H100, `embers` | official -> control | `driftflowworld-pusht` | val loss and rollout metrics | Starts only after B0 and exact-resume S2 pass. |
+| T1 | queued (`11362985_1`, gated) | DriftFlowWorld, 100k updates / 1 | `docs/manifests/posttrain.yaml` | 2x H100, `embers` | official -> DFM | `driftflowworld-pusht` | NFE 1/2/4 metrics and block-pose error | Starts only after B0 and exact-resume S2 pass; then apply transport gate. |
 
 ## Q3 — Where should a fixed planning budget be spent?
 
