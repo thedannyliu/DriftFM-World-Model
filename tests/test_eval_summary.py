@@ -2,11 +2,17 @@ import sys
 from pathlib import Path
 
 import pytest
+import torch
 
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "driftworld"))
 
-from eval.eval_on_many_videos import _summarize_state
+from eval.eval_on_many_videos import _summarize_state, _warm_up_rollout
+
+
+class _NoiseRollout:
+    def sample_autoregressive(self, cur_state, actions, nfe):
+        return torch.randn_like(cur_state)
 
 
 def test_summary_keeps_paired_per_video_metrics():
@@ -30,3 +36,15 @@ def test_summary_keeps_paired_per_video_metrics():
         "psnr": [20.0, 21.0],
         "lpips": [0.3, 0.2],
     }
+
+
+def test_warmup_preserves_noise_stream():
+    obs = torch.zeros(1, 2, 3, 2, 2)
+    action = torch.zeros(1, 1, 2)
+    torch.manual_seed(7)
+    expected = torch.randn_like(obs)
+
+    torch.manual_seed(7)
+    _warm_up_rollout(_NoiseRollout(), obs, action, n_history=2, nfe=1)
+
+    torch.testing.assert_close(torch.randn_like(obs), expected, rtol=0, atol=0)

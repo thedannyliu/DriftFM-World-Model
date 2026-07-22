@@ -28,6 +28,21 @@ def _rollout_autoregressive(denoiser, all_obs, all_act, n_history, nfe):
     return denoiser.sample_autoregressive(cur_state, actions, nfe=nfe)
 
 
+@torch.no_grad()
+def _warm_up_rollout(denoiser, all_obs, all_act, n_history, nfe):
+    """Run one unmeasured rollout without changing the paired noise stream."""
+    cpu_rng = torch.get_rng_state()
+    cuda_rng = torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None
+    try:
+        _rollout_autoregressive(denoiser, all_obs, all_act, n_history, nfe)
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+    finally:
+        torch.set_rng_state(cpu_rng)
+        if cuda_rng is not None:
+            torch.cuda.set_rng_state_all(cuda_rng)
+
+
 def _new_state():
     """Accumulators: per-video metric lists and timing totals."""
     return {
@@ -104,6 +119,10 @@ def evaluate_on_many_videos(cfg, num_videos=1000, video_len=64, step=None):
         T = all_obs.shape[1]  # rollout length
 
         gt = all_obs
+
+        if i == 0:
+            log.info("Running one unmeasured rollout warm-up with preserved RNG state")
+            _warm_up_rollout(denoiser, all_obs, all_act, n_history, nfe)
 
         if torch.cuda.is_available():
             torch.cuda.synchronize()
