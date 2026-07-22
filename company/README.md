@@ -44,6 +44,8 @@ the environment:
 
 Setup stages, package installation, download progress, and retries are shown in the
 terminal. The same output is retained in `/user-volume/driftworld/logs/setup.log`.
+Downloads use eight workers by default. Set `DRIFTFLOWWORLD_DOWNLOAD_WORKERS=16` for
+more throughput, or reduce it if the company CDN becomes unstable.
 
 Dependency installation respects `PIP_INDEX_URL` and other company pip-mirror
 settings. Do not install a separate PyTorch or CUDA wheel into this environment.

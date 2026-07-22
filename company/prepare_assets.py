@@ -23,17 +23,26 @@ MODEL_PATTERNS = [
 ]
 
 
-def download_snapshot(*, label: str, local_dir: Path, attempts: int = 5, **kwargs):
-    """Download serially and resume after transient company-network failures."""
+def download_snapshot(
+    *, label: str, local_dir: Path, max_workers: int, attempts: int = 5, **kwargs
+):
+    """Download concurrently and resume after transient company-network failures."""
     for attempt in range(1, attempts + 1):
         for metadata_dir in (
             local_dir / ".huggingface",
             local_dir / ".cache" / "huggingface",
         ):
             metadata_dir.mkdir(parents=True, exist_ok=True)
-        print(f"[download] {label}: attempt {attempt}/{attempts}", flush=True)
+        print(
+            f"[download] {label}: attempt {attempt}/{attempts}, workers={max_workers}",
+            flush=True,
+        )
         try:
-            result = snapshot_download(local_dir=local_dir, max_workers=1, **kwargs)
+            result = snapshot_download(
+                local_dir=local_dir,
+                max_workers=max_workers,
+                **kwargs,
+            )
             print(f"[download] {label}: complete", flush=True)
             return result
         except (RequestException, OSError) as error:
@@ -54,7 +63,10 @@ def main():
         type=Path,
         default=Path("/group-volume/danny-dataset/driftworld"),
     )
+    parser.add_argument("--max-workers", type=int, default=8)
     args = parser.parse_args()
+    if args.max_workers < 1:
+        parser.error("--max-workers must be at least 1")
     root = args.asset_root.resolve()
     model_root = root / "checkpoints" / "official"
     data_root = root / "data"
@@ -65,6 +77,7 @@ def main():
 
     download_snapshot(
         label="official checkpoints",
+        max_workers=args.max_workers,
         repo_id="Susie-Lu/driftworld",
         local_dir=model_root,
         cache_dir=cache_root,
@@ -72,6 +85,7 @@ def main():
     )
     download_snapshot(
         label="Push-T dataset",
+        max_workers=args.max_workers,
         repo_id="han2019/gpc_pushT_data",
         repo_type="dataset",
         local_dir=data_root,

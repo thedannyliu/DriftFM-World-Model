@@ -6,6 +6,7 @@ ASSET_ROOT=${DRIFTFLOWWORLD_ASSET_ROOT:-/group-volume/danny-dataset/driftworld}
 RUNTIME_ROOT=${DRIFTFLOWWORLD_RUNTIME_ROOT:-/user-volume/driftworld}
 ENV_PREFIX=${DRIFTFLOWWORLD_ENV_PREFIX:-${RUNTIME_ROOT}/envs/driftfm-ngc24.06-py310}
 PYTHON_BIN=${PYTHON_BIN:-python3}
+DOWNLOAD_WORKERS=${DRIFTFLOWWORLD_DOWNLOAD_WORKERS:-8}
 SETUP_LOG=${RUNTIME_ROOT}/logs/setup.log
 export PIP_CACHE_DIR=${RUNTIME_ROOT}/cache/pip
 export XDG_CACHE_HOME=${RUNTIME_ROOT}/cache
@@ -35,7 +36,8 @@ export TORCH_HOME=${ASSET_ROOT}/cache/torch
 export PYTHONNOUSERSITE=1
 echo "[4/5] Downloading/resuming Hugging Face assets under ${ASSET_ROOT}"
 if ! "${ENV_PREFIX}/bin/python" -u "${REPO_ROOT}/company/prepare_assets.py" \
-    --asset-root "${ASSET_ROOT}" 2>&1 | tee -a "${SETUP_LOG}"; then
+    --asset-root "${ASSET_ROOT}" --max-workers "${DOWNLOAD_WORKERS}" \
+    2>&1 | tee -a "${SETUP_LOG}"; then
     echo "Asset preparation failed; full log: ${SETUP_LOG}" >&2
     exit 1
 fi
