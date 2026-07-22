@@ -103,3 +103,5 @@ Training launchers print the resolved GPU, checkpoint, output, log, and W&B sett
 Smoke runs print every loss/checkpoint event; pilot runs print every 100th loss plus
 checkpoint events. Any failed DDP subprocess prints the first underlying traceback
 context rather than only the final TorchElastic wrapper summary.
+Both launchers run a single-process dependency preflight before starting four DDP
+workers.

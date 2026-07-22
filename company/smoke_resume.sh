@@ -67,6 +67,10 @@ run_train() {
 
 echo "[smoke] gpus=${GPUS_PER_NODE} data=${DATA_DIR} init_checkpoint=${INIT_CHECKPOINT}"
 echo "[smoke] full_logs=${LOG_DIR}"
+echo "[smoke] dependency preflight"
+cd "${REPO_ROOT}/driftworld"
+"${ENV_PREFIX}/bin/python" -c \
+    'import hydra, omegaconf, torch, wandb, zarr; import train, utils_model; print("[smoke] dependency_preflight=pass")'
 run_train "${RUN_ROOT}/continuous" 3 continuous
 run_train "${RUN_ROOT}/resumed" 2 resumed
 run_train "${RUN_ROOT}/resumed" 3 resumed

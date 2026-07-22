@@ -50,6 +50,9 @@ if [[ -n ${WANDB_ENTITY:-} ]]; then
 fi
 
 cd "${REPO_ROOT}/driftworld"
+echo "[pilot] dependency preflight"
+"${ENV_PREFIX}/bin/python" -c \
+    'import hydra, omegaconf, torch, wandb, zarr; import train, utils_model; print("[pilot] dependency_preflight=pass")'
 echo "[pilot] role=${ROLE} gpus=${GPUS_PER_NODE} batch_per_gpu=${BATCH_PER_GPU} max_steps=${MAX_STEPS} seed=${SEED}"
 echo "[pilot] output=${OUTPUT_DIR} full_log=${FULL_LOG} wandb_project=${WANDB_PROJECT} wandb_run=${RUN_NAME}"
 if [[ -f ${OUTPUT_DIR}/ckpt-latest.pth ]]; then
