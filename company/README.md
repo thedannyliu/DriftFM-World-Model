@@ -55,6 +55,9 @@ Dependency installation respects `PIP_INDEX_URL` and other company pip-mirror
 settings. Do not install a separate PyTorch or CUDA wheel into this environment.
 Setup force-installs the small OmegaConf/ANTLR runtime overlay into the venv because
 the NGC image may expose package metadata without importable modules.
+Company launchers prepend the venv site-packages to the container's existing
+`PYTHONPATH`; this keeps venv packages authoritative without hiding NGC runtime
+dependencies.
 
 Set `WANDB_API_KEY` through the company secret manager. Optionally set
 `WANDB_ENTITY` and `WANDB_PROJECT`; credentials are never written by these scripts.

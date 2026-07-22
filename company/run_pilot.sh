@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
-unset PYTHONPATH
 
 if [[ $# -ne 1 || ( $1 != control && $1 != driftflow ) ]]; then
     echo "Usage: $0 {control|driftflow}" >&2
@@ -11,6 +10,7 @@ REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 ASSET_ROOT=${DRIFTFLOWWORLD_ASSET_ROOT:-/group-volume/danny-dataset/driftworld}
 RUNTIME_ROOT=${DRIFTFLOWWORLD_RUNTIME_ROOT:-/user-volume/driftworld}
 ENV_PREFIX=${DRIFTFLOWWORLD_ENV_PREFIX:-${RUNTIME_ROOT}/envs/driftfm-ngc24.06-py310}
+export PYTHONPATH="${ENV_PREFIX}/lib/python3.10/site-packages${PYTHONPATH:+:${PYTHONPATH}}"
 GPUS_PER_NODE=${GPUS_PER_NODE:-4}
 BATCH_PER_GPU=${BATCH_PER_GPU:-1}
 WORKERS_PER_GPU=${WORKERS_PER_GPU:-4}

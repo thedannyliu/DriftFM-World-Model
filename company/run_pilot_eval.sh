@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
-unset PYTHONPATH
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 ASSET_ROOT=${DRIFTFLOWWORLD_ASSET_ROOT:-/group-volume/danny-dataset/driftworld}
 RUNTIME_ROOT=${DRIFTFLOWWORLD_RUNTIME_ROOT:-/user-volume/driftworld}
 ENV_PREFIX=${DRIFTFLOWWORLD_ENV_PREFIX:-${RUNTIME_ROOT}/envs/driftfm-ngc24.06-py310}
+export PYTHONPATH="${ENV_PREFIX}/lib/python3.10/site-packages${PYTHONPATH:+:${PYTHONPATH}}"
 NUM_VIDEOS=${EVAL_NUM_VIDEOS:-25}
 SEED=${SEED:-1}
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)

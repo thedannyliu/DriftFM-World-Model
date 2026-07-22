@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
-unset PYTHONPATH
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 ASSET_ROOT=${DRIFTFLOWWORLD_ASSET_ROOT:-/group-volume/danny-dataset/driftworld}
@@ -24,6 +23,7 @@ if [[ ! -x "${ENV_PREFIX}/bin/python" ]]; then
 else
     echo "[2/5] Reusing ${ENV_PREFIX}"
 fi
+export PYTHONPATH="${ENV_PREFIX}/lib/python3.10/site-packages${PYTHONPATH:+:${PYTHONPATH}}"
 
 echo "[3/5] Installing Python dependencies (log: ${SETUP_LOG})"
 if ! "${ENV_PREFIX}/bin/python" -m pip install -r "${REPO_ROOT}/company/requirements.txt" \
