@@ -41,5 +41,5 @@ fi
 
 echo "[4/4] Verifying active container"
 "${PYTHON_BIN}" -c \
-    'import hydra, huggingface_hub, json, numpy, omegaconf, torch, torch.distributed.run, torchvision, wandb, zarr; print(json.dumps({"status":"ready","torch":torch.__version__,"torchvision":torchvision.__version__,"cuda":torch.version.cuda,"numpy":numpy.__version__,"zarr":zarr.__version__,"omegaconf":omegaconf.__version__,"huggingface_hub":huggingface_hub.__version__,"distributed_launcher":True,"gpu_count":torch.cuda.device_count()}))'
+    'import hydra, huggingface_hub, json, numpy, omegaconf, torch, torch.distributed.run, torchvision, wandb, zarr; print(json.dumps({"status":"ready","torch":torch.__version__,"torchvision":torchvision.__version__,"cuda":torch.version.cuda,"numpy":numpy.__version__,"zarr":zarr.__version__,"omegaconf":omegaconf.__version__,"huggingface_hub":huggingface_hub.__version__,"wandb":wandb.__version__,"distributed_launcher":True,"gpu_count":torch.cuda.device_count()}))'
 echo "setup_log=${SETUP_LOG}"

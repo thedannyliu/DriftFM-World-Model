@@ -36,8 +36,17 @@ The command installs `company/requirements.txt` directly into the active contain
 the company workflow does not use venv or Conda. It preserves the image's PyTorch 2.4
 and torchvision packages and downloads the required Push-T data and weights from
 Hugging Face. Downloads use a 120-second read timeout, retry transient failures, and
-resume files already present. To download or repair assets without reinstalling
-packages:
+resume files already present.
+
+The requirements install W&B 0.22.3, which accepts current long-form API keys. After
+updating an existing checkout, reinstall without touching shared assets before login:
+
+```bash
+DRIFTFLOWWORLD_SKIP_ASSETS=1 bash company/setup.sh
+wandb login --relogin
+```
+
+To download or repair assets without reinstalling packages:
 
 ```bash
 python3 company/prepare_assets.py
@@ -124,6 +133,12 @@ Node A and endpoint replay probability 0.50 on Node B. Override targets with
 `/user-volume/driftworld/logs/overnight/`; each training and evaluation retains its
 own full log in the existing task-specific directory.
 
+`start_overnight.sh` follows the detached queue log in the terminal by default.
+Training prints the actual step and loss every 20 updates, plus validation and
+checkpoint events. Pressing Ctrl-C stops only the viewer; the printed queue PID keeps
+running in the background. Set `OVERNIGHT_FOLLOW_LOGS=0` for an immediate return or
+change the interval with `PILOT_PRINT_EVERY`.
+
 Post-training holds out episodes 490–499 from each 500-episode domain and evaluates 16
 fixed adaptation-validation batches every 500 updates. The released parent may have
 already seen these episodes, so this detects post-training overfit but is not an unseen
@@ -142,7 +157,7 @@ under `/user-volume/driftworld/logs/`. Useful overrides include `MAX_STEPS`,
 `DRIFTFLOW_TIME_SAMPLING`, or `DRIFTFLOW_ENDPOINT_REPLAY`.
 
 Training launchers print the resolved GPU, checkpoint, output, log, and W&B settings.
-Smoke runs print every loss/checkpoint event; pilot runs print every 100th loss plus
+Smoke runs print every loss/checkpoint event; pilot runs print every 20th loss plus
 checkpoint events. Any failed DDP subprocess prints the first underlying traceback
 context rather than only the final TorchElastic wrapper summary.
 Both launchers run a single-process dependency preflight before starting four DDP

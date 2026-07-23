@@ -338,7 +338,7 @@ def train(cfg):
                 log.info(f"(epoch {epoch_idx}) (batch {batch_idx}/{len(dataloader)})")
                 for k, v in metrics.items():
                     if k.startswith("loss_") or k == "lr":
-                        log.info(f"{k}: {v}")
+                        log.info(f"step: {actual_step} | {k}: {v}")
 
             validation_improved = False
             should_validate = (

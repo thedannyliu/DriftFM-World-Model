@@ -19,7 +19,13 @@ WANDB_PROJECT=${WANDB_PROJECT:-driftfm-world-model-company}
 EXPERIMENT_TAG=${EXPERIMENT_TAG:-}
 VALIDATION_EVERY=${VALIDATION_EVERY:-500}
 VALIDATION_BATCHES=${VALIDATION_BATCHES:-16}
+PILOT_PRINT_EVERY=${PILOT_PRINT_EVERY:-20}
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+
+if (( PILOT_PRINT_EVERY < 1 )); then
+    echo "PILOT_PRINT_EVERY must be at least 1" >&2
+    exit 2
+fi
 
 if [[ ${ROLE} == control ]]; then
     CONFIG=pushT_driftworld_continue
@@ -89,13 +95,13 @@ set +e
     data.dataset_path_dir="${DATA_DIR}" data.batch_size="${BATCH_PER_GPU}" \
     dataloader.num_workers="${WORKERS_PER_GPU}" \
     output_dir="${OUTPUT_DIR}" hydra.run.dir="${LOG_DIR}/hydra" \
-    "${WANDB_ARGS[@]}" "${MODEL_ARGS[@]}" 2>&1 | tee "${FULL_LOG}" | awk '
+    "${WANDB_ARGS[@]}" "${MODEL_ARGS[@]}" 2>&1 | tee "${FULL_LOG}" | awk -v print_every="${PILOT_PRINT_EVERY}" '
         /Started new wandb|Resuming wandb|Saving latest ckpt|Saving final checkpoint|Saved best ckpt|validation\/loss:/ {
             print; fflush(); next
         }
         /loss_backprop:/ {
             losses += 1
-            if (losses == 1 || losses % 100 == 0) { print; fflush() }
+            if (losses == 1 || losses % print_every == 0) { print; fflush() }
         }
     '
 PIPE_STATUSES=("${PIPESTATUS[@]}")

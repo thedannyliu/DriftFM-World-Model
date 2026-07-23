@@ -13,6 +13,7 @@ TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 LOG_DIR=${RUNTIME_ROOT}/logs/overnight
 RUN_LOG=${LOG_DIR}/${NODE_ROLE}-${TIMESTAMP}.log
 PID_FILE=${LOG_DIR}/${NODE_ROLE}.pid
+FOLLOW_LOGS=${OVERNIGHT_FOLLOW_LOGS:-1}
 mkdir -p "${LOG_DIR}"
 
 if [[ -s ${PID_FILE} ]]; then
@@ -23,8 +24,12 @@ if [[ -s ${PID_FILE} ]]; then
     fi
 fi
 
-nohup bash "${REPO_ROOT}/company/run_overnight.sh" "${NODE_ROLE}" \
+nohup setsid bash "${REPO_ROOT}/company/run_overnight.sh" "${NODE_ROLE}" \
     >"${RUN_LOG}" 2>&1 </dev/null &
 QUEUE_PID=$!
 printf '%s\n' "${QUEUE_PID}" >"${PID_FILE}"
 echo "overnight_started node=${NODE_ROLE} pid=${QUEUE_PID} log=${RUN_LOG}"
+if [[ ${FOLLOW_LOGS} == 1 ]]; then
+    echo "streaming_training_log=on (Ctrl-C stops viewing only; queue pid ${QUEUE_PID} keeps running)"
+    tail --pid="${QUEUE_PID}" -n +1 -f "${RUN_LOG}"
+fi
