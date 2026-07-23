@@ -25,6 +25,11 @@ is imposed.
   updates, and DriftFlowWorld post-training from that same checkpoint.
 - Tracking: private W&B project `driftflowworld-pusht`; resumption reuses the stored run
   ID and checkpointed RNG/scaler states.
+- Checkpoint selection: in each 500-episode domain, episodes 0–489 post-train and
+  490–499 select `best` by fixed stochastic-objective loss. The released parent may
+  already have seen all 500, so this is an adaptation-overfit monitor, not an unseen
+  test set. Single-episode long-trajectory domains remain train-only. `latest` is the
+  full resumable state; rollout metrics do not select checkpoints.
 
 The released Push-T code is the executable baseline. Paper components not present in
 that code (for example DINO supervision or no-action negatives) are not added to only
@@ -48,7 +53,7 @@ transport intervals while reusing the initial noise for paired comparisons.
    NFE=1 output is numerically equal before training.
 2. **Baseline reproduction:** released 64-frame/full-video metrics fall within 10%
    relative MSE/LPIPS, 0.005 absolute SSIM, and 0.5 dB PSNR of reported values.
-3. **10k pilot:** on the first 25 validation videos, compare the matched continued
+3. **10k pilot:** on the first 25 development rollouts, compare the matched continued
    DriftWorld arm with DriftFlowWorld NFE=1/2/4 before committing the remaining budget.
    This is a direction check, not the locked transport claim.
 4. **Transport signal:** NFE=1 degrades by no more than 5%; NFE=4 improves LPIPS or

@@ -114,17 +114,32 @@ wandb login
 bash company/start_overnight.sh node-b
 ```
 
-The queue forces online W&B logging. Seed 1 runs for 20k matched steps; replication
-seeds 2 and 3 run for 10k matched steps each. After both seed-1 arms complete, Node A
-evaluates seed 1 while Node B starts seed 2. Override these targets with
-`OVERNIGHT_PRIMARY_STEPS` and `OVERNIGHT_REPLICATION_STEPS`. Queue stdout is detached
-under `/user-volume/driftworld/logs/overnight/`; each training and evaluation retains
-its own full log in the existing task-specific directory.
+The queue forces online W&B logging. Seed 1 runs for 30k matched steps, with paired
+25-video rollout evaluation at 10k, 20k, and 30k. The final milestone evaluates both
+`latest` and validation-selected `best`. Seeds 2 and 3 then run for 10k matched steps.
+Finally, spare queue time runs two 10k Drift Flow ablations: uniform time sampling on
+Node A and endpoint replay probability 0.50 on Node B. Override targets with
+`OVERNIGHT_PRIMARY_STEPS`, `OVERNIGHT_REPLICATION_STEPS`,
+`OVERNIGHT_ABLATION_STEPS`, and `OVERNIGHT_MILESTONES`. Queue stdout is detached under
+`/user-volume/driftworld/logs/overnight/`; each training and evaluation retains its
+own full log in the existing task-specific directory.
+
+Post-training holds out episodes 490–499 from each 500-episode domain and evaluates 16
+fixed adaptation-validation batches every 500 updates. The released parent may have
+already seen these episodes, so this detects post-training overfit but is not an unseen
+test-set claim. The single-episode long-trajectory domains remain train-only. Each run
+stores exactly two model checkpoints:
+`ckpt-latest.pth` is a full resumable state (model, optimizer, scheduler, step, per-rank
+RNG, and best-validation metadata), and `ckpt-best.pth` is the full state with minimum
+held-out loss. Resume always loads `latest` and reuses the same W&B run ID. Older
+`ckpt-2nd-latest.pth` files in a resumed output are removed automatically. W&B logs
+metrics only and does not upload checkpoint artifacts.
 
 Terminal output is intentionally short JSON suitable for pasting back. Full logs stay
 under `/user-volume/driftworld/logs/`. Useful overrides include `MAX_STEPS`,
 `EVAL_NUM_VIDEOS`, `SEED`, `CUDA_VISIBLE_DEVICES`, `WANDB_ENTITY`, and
-`WANDB_PROJECT`.
+`WANDB_PROJECT`. Single-run Drift Flow ablations can also set `EXPERIMENT_TAG`,
+`DRIFTFLOW_TIME_SAMPLING`, or `DRIFTFLOW_ENDPOINT_REPLAY`.
 
 Training launchers print the resolved GPU, checkpoint, output, log, and W&B settings.
 Smoke runs print every loss/checkpoint event; pilot runs print every 100th loss plus
