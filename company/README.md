@@ -103,6 +103,22 @@ evaluation:
 bash company/run_pilot_eval.sh
 ```
 
+For an unattended priority queue, log in to W&B on both nodes, then start Node A and
+Node B respectively:
+
+```bash
+wandb login
+bash company/start_overnight.sh node-a
+
+wandb login
+bash company/start_overnight.sh node-b
+```
+
+The queue forces online W&B logging. It runs matched 10k-step seeds 1, 2, and 3. After
+both seed-1 arms complete, Node A evaluates seed 1 while Node B starts seed 2. Queue
+stdout is detached under `/user-volume/driftworld/logs/overnight/`; each training and
+evaluation retains its own full log in the existing task-specific directory.
+
 Terminal output is intentionally short JSON suitable for pasting back. Full logs stay
 under `/user-volume/driftworld/logs/`. Useful overrides include `MAX_STEPS`,
 `EVAL_NUM_VIDEOS`, `SEED`, `CUDA_VISIBLE_DEVICES`, `WANDB_ENTITY`, and

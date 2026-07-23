@@ -89,4 +89,5 @@ if (( STATUS != 0 )); then
 fi
 
 "${PYTHON_BIN}" "${REPO_ROOT}/company/summarize_checkpoint.py" \
-    --role "${ROLE}" --output-dir "${OUTPUT_DIR}" --log "${FULL_LOG}"
+    --role "${ROLE}" --output-dir "${OUTPUT_DIR}" --log "${FULL_LOG}" \
+    | tee "${OUTPUT_DIR}/complete-step${MAX_STEPS}.json"
