@@ -167,6 +167,27 @@ bash company/run_variant_eval.sh driftflow-uniform latest
 bash company/run_variant_eval.sh driftflow-replay50 latest
 ```
 
+After both repair runs and their rollout evaluations finish, localize the failure on
+the two nodes concurrently:
+
+```bash
+# Node A: main DFM latest/best, uniform best, and 16-positive best
+bash company/run_transport_audit.sh node-a
+
+# Node B: endpoint-replay .50 latest/best and exact-grid latest/best
+bash company/run_transport_audit.sh node-b
+```
+
+Each GPU audits one checkpoint using the first eight fixed validation batches and 16
+paired source particles. It measures one-chunk teacher-forced local transport, free
+NFE1/2/4 composition, displacement progress, orthogonal error, and sensitivity to the
+time pair. Every checkpoint gets an online W&B `transport-audit` run. The terminal
+prints batch progress and one compact combined JSON; full per-interval metrics and
+logs remain under `/user-volume/driftworld/results/transport-audit/` and
+`/user-volume/driftworld/logs/transport-audit/`. Increase evidence with
+`AUDIT_NUM_BATCHES` or `AUDIT_PARTICLES` only after the default audit identifies a
+stable mechanism.
+
 Post-training holds out episodes 490–499 from each 500-episode domain and evaluates 16
 fixed adaptation-validation batches every 500 updates. The released parent may have
 already seen these episodes, so this detects post-training overfit but is not an unseen
