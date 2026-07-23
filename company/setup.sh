@@ -24,14 +24,6 @@ if ! "${PYTHON_BIN}" -m pip install -r "${REPO_ROOT}/company/requirements.txt" \
     echo "Environment installation failed; full log: ${SETUP_LOG}" >&2
     exit 1
 fi
-echo "[2/4] Installing Hydra/W&B runtime overlay"
-if ! "${PYTHON_BIN}" -m pip install --ignore-installed \
-    hydra-core==1.3.2 omegaconf==2.3.0 antlr4-python3-runtime==4.9.3 \
-    wandb==0.18.7 \
-    2>&1 | tee -a "${SETUP_LOG}"; then
-    echo "Hydra/W&B runtime overlay failed; full log: ${SETUP_LOG}" >&2
-    exit 1
-fi
 
 export HF_HOME=${ASSET_ROOT}/cache/huggingface
 export TORCH_HOME=${ASSET_ROOT}/cache/torch

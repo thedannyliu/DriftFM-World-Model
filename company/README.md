@@ -52,9 +52,9 @@ two Git LFS objects are downloaded through the authenticated Hub API. The token 
 in the user's Hugging Face login store and is never copied into the shared asset root.
 
 Dependency installation respects `PIP_INDEX_URL` and other company pip-mirror
-settings. Do not install a separate PyTorch or CUDA wheel into the container. Setup
-force-installs the Hydra and W&B runtime dependency closures
-because the NGC image may expose package metadata without importable modules.
+settings. Do not install a separate PyTorch or CUDA wheel into the container. Package
+pins are selected to remain compatible with the NGC image's Transformers, cuDF, and
+MLflow dependencies used elsewhere in the image.
 
 On additional nodes sharing already-prepared assets, skip asset work with:
 
