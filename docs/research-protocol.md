@@ -63,10 +63,12 @@ transport intervals while reusing the initial noise for paired comparisons.
 6. **Confirmation:** repeat the selected configuration from scratch for seeds 1, 2,
    and 3.
 
-If gate 3 fails after 100k post-training updates, run one bounded ablation wave:
-uniform versus logit-normal time sampling, endpoint replay 0.25 versus 0.5, 16 versus
-32 particles, and released drift versus grouped Sinkhorn drift, using 25k-update pilots.
-Do not expand to Robomimic until the Push-T planning gate passes.
+The company 30k pilot failed gate 3 catastrophically at NFE2/4, so extending the
+unchanged objective to 100k is not justified. First localize whether failure comes from
+inference-grid time-pair extrapolation, an under-sampled intermediate positive
+marginal, or composed sources leaving interpolant support. Only a repair that restores
+monotonic NFE scaling may enter the bounded ablation wave. Do not run planning, MNAD,
+or expand to Robomimic while the NFE4 teacher is worse than NFE1.
 
 Block-pose error is a frozen-predictor proxy, not simulator ground truth: the released
 GPC-RANK xy and angle predictors estimate the T-block pose from both the generated and
