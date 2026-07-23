@@ -18,6 +18,9 @@ def create_model(cfg, device):
         endpoint_replay_probability=drift_flow.get("endpoint_replay_probability", 0.25),
         grid_replay_probability=drift_flow.get("grid_replay_probability", 0.0),
         positive_particles=drift_flow.get("positive_particles", 1),
+        transport_parameterization=drift_flow.get(
+            "transport_parameterization", "residual"
+        ),
         time_sampling=drift_flow.get("time_sampling", "logit_normal"),
         time_mu=drift_flow.get("time_mu", -0.4),
         time_sigma=drift_flow.get("time_sigma", 1.0),

@@ -188,6 +188,22 @@ logs remain under `/user-volume/driftworld/results/transport-audit/` and
 `AUDIT_NUM_BATCHES` or `AUDIT_PARTICLES` only after the default audit identifies a
 stable mechanism.
 
+The audit identifies an endpoint-prediction failure mode when late teacher-forced
+progress follows the raw interval length and time-conditioned residuals remain nearly
+collinear with the endpoint residual. Test the corresponding endpoint-normalized
+transport without retraining:
+
+```bash
+bash company/run_endpoint_normalized_eval.sh node-a
+bash company/run_endpoint_normalized_eval.sh node-b
+```
+
+Run one command on each node. The sampler uses
+`x_r = x_t + (r-t)/(1-t) * (G(x_t)-x_t)`, which leaves NFE1 exactly unchanged.
+Each node evaluates four existing latest/best checkpoints sequentially, logs every
+rollout summary online to W&B, keeps parameterization-specific metrics separate from
+the original evaluations, and prints one compact final JSON.
+
 Post-training holds out episodes 490–499 from each 500-episode domain and evaluates 16
 fixed adaptation-validation batches every 500 updates. The released parent may have
 already seen these episodes, so this detects post-training overfit but is not an unseen

@@ -35,6 +35,7 @@ class Denoiser(nn.Module):
                  endpoint_replay_probability: float = 0.25,
                  grid_replay_probability: float = 0.0,
                  positive_particles: int = 1,
+                 transport_parameterization: str = "residual",
                  time_sampling: str = "logit_normal",
                  time_mu: float = -0.4,
                  time_sigma: float = 1.0,
@@ -46,6 +47,10 @@ class Denoiser(nn.Module):
             raise ValueError("Endpoint and grid replay probabilities must sum to at most one")
         if positive_particles < 1:
             raise ValueError("positive_particles must be at least one")
+        if transport_parameterization not in {"residual", "endpoint_normalized"}:
+            raise ValueError(
+                f"Unknown transport parameterization: {transport_parameterization}"
+            )
         self.objective = objective
         self.inner_model = UNet_model_dict[unet_name](
             num_history=num_history_frames,
@@ -59,6 +64,7 @@ class Denoiser(nn.Module):
         self.endpoint_replay_probability = endpoint_replay_probability
         self.grid_replay_probability = grid_replay_probability
         self.positive_particles = positive_particles
+        self.transport_parameterization = transport_parameterization
         self.time_sampling = time_sampling
         self.time_mu = time_mu
         self.time_sigma = time_sigma
@@ -137,6 +143,11 @@ class Denoiser(nn.Module):
                 info[key] += weight * value
         return loss, info
 
+    def _transport_scale(self, source_time, delta):
+        if self.transport_parameterization == "endpoint_normalized":
+            return delta / (1.0 - source_time).clamp_min(1e-4)
+        return delta
+
     def forward(self, batch: Batch, device):
         """
         Forward pass to train DriftWorld
@@ -181,7 +192,8 @@ class Denoiser(nn.Module):
                 self.n_neg, dim=0
             )
             endpoint = self.inner_model(source_x, history, actions, time_pair=time_pair)
-            gen = source_x + delta_rep * (endpoint - source_x)
+            transport_scale = self._transport_scale(source_rep, delta_rep)
+            gen = source_x + transport_scale * (endpoint - source_x)
 
             positive_noise = torch.randn(
                 (b, self.positive_particles, c, n, h, w), device=device
@@ -267,7 +279,8 @@ class Denoiser(nn.Module):
                 if source == 0 and target == 1:
                     state = endpoint
                 else:
-                    state = state + delta * (endpoint - state)
+                    transport_scale = self._transport_scale(source, delta)
+                    state = state + transport_scale * (endpoint - state)
         return state.permute(0, 2, 1, 3, 4)
 
     @torch.no_grad()
