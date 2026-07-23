@@ -33,6 +33,8 @@ class Denoiser(nn.Module):
                  decay: float, # EMA decay
                  objective: str = "driftworld",
                  endpoint_replay_probability: float = 0.25,
+                 grid_replay_probability: float = 0.0,
+                 positive_particles: int = 1,
                  time_sampling: str = "logit_normal",
                  time_mu: float = -0.4,
                  time_sigma: float = 1.0,
@@ -40,6 +42,10 @@ class Denoiser(nn.Module):
         super().__init__()
         if objective not in {"driftworld", "drift_flow"}:
             raise ValueError(f"Unknown objective: {objective}")
+        if endpoint_replay_probability + grid_replay_probability > 1.0:
+            raise ValueError("Endpoint and grid replay probabilities must sum to at most one")
+        if positive_particles < 1:
+            raise ValueError("positive_particles must be at least one")
         self.objective = objective
         self.inner_model = UNet_model_dict[unet_name](
             num_history=num_history_frames,
@@ -51,6 +57,8 @@ class Denoiser(nn.Module):
         self.num_history_frames = num_history_frames
         self.decay = decay
         self.endpoint_replay_probability = endpoint_replay_probability
+        self.grid_replay_probability = grid_replay_probability
+        self.positive_particles = positive_particles
         self.time_sampling = time_sampling
         self.time_mu = time_mu
         self.time_sigma = time_sigma
@@ -68,7 +76,7 @@ class Denoiser(nn.Module):
         """
         B, N, C, H, W = gen.shape
         gen_flat = gen.reshape(B, N, -1) # [B, N, D], where D=C*H*W
-        pos_flat = pos.reshape(B, 1, -1) # [B, 1, D]
+        pos_flat = pos.reshape(B, pos.shape[1], -1) # [B, P, D]
 
         loss, info = drift_loss(gen=gen_flat, fixed_pos=pos_flat, R_list=self.temp_list)
         return loss.mean(), info
@@ -85,11 +93,49 @@ class Denoiser(nn.Module):
 
         source = endpoints.min(dim=1).values
         target = endpoints.max(dim=1).values
-        replay = torch.rand(batch_size, device=device) < self.endpoint_replay_probability
-        source = torch.where(replay, torch.zeros_like(source), source)
-        target = torch.where(replay, torch.ones_like(target), target)
+        category = torch.rand(batch_size, device=device)
+        endpoint_replay = category < self.endpoint_replay_probability
+        grid_replay = (
+            (category >= self.endpoint_replay_probability)
+            & (category < self.endpoint_replay_probability + self.grid_replay_probability)
+        )
+
+        grid_sources = source.new_tensor((0.0, 0.5, 0.0, 0.25, 0.5, 0.75))
+        grid_deltas = source.new_tensor((0.5, 0.5, 0.25, 0.25, 0.25, 0.25))
+        grid_indices = torch.randint(grid_sources.numel(), (batch_size,), device=device)
+        source = torch.where(grid_replay, grid_sources[grid_indices], source)
+        target = torch.where(
+            grid_replay,
+            grid_sources[grid_indices] + grid_deltas[grid_indices],
+            target,
+        )
+        source = torch.where(endpoint_replay, torch.zeros_like(source), source)
+        target = torch.where(endpoint_replay, torch.ones_like(target), target)
         delta = (target - source).clamp_min(1e-4)
-        return source, target, delta, replay
+        return source, target, delta, endpoint_replay, grid_replay
+
+    def _mixed_positive_drift_loss(self, gen, pos, endpoint_replay):
+        """Use one endpoint positive but all intermediate-marginal positives."""
+        if pos.shape[1] == 1:
+            return self.drifting_loss(gen, pos)
+
+        loss = gen.new_zeros(())
+        info = defaultdict(float)
+        for mask, num_positives in (
+            (endpoint_replay, 1),
+            (~endpoint_replay, pos.shape[1]),
+        ):
+            count = int(mask.sum().item())
+            if count == 0:
+                continue
+            group_loss, group_info = self.drifting_loss(
+                gen[mask], pos[mask, :num_positives]
+            )
+            weight = count / gen.shape[0]
+            loss = loss + weight * group_loss
+            for key, value in group_info.items():
+                info[key] += weight * value
+        return loss, info
 
     def forward(self, batch: Batch, device):
         """
@@ -124,7 +170,9 @@ class Denoiser(nn.Module):
         # gen: (j*b, c, n, h, w) generated samples, i.e. "negative" samples for drifting
         noise = torch.randn((self.n_neg * b, c, n, h, w), device=device)
         if self.objective == "drift_flow":
-            source_time, target_time, delta, replay = self._sample_time_pairs(b, device)
+            source_time, target_time, delta, replay, grid_replay = self._sample_time_pairs(
+                b, device
+            )
             target_rep = target_x.repeat_interleave(self.n_neg, dim=0)
             source_rep = source_time.repeat_interleave(self.n_neg).view(-1, 1, 1, 1, 1)
             delta_rep = delta.repeat_interleave(self.n_neg).view(-1, 1, 1, 1, 1)
@@ -135,12 +183,17 @@ class Denoiser(nn.Module):
             endpoint = self.inner_model(source_x, history, actions, time_pair=time_pair)
             gen = source_x + delta_rep * (endpoint - source_x)
 
-            positive_noise = torch.randn((b, c, n, h, w), device=device)
-            target_view = target_time.view(b, 1, 1, 1, 1)
-            positive_x = (1.0 - target_view) * positive_noise + target_view * target_x
+            positive_noise = torch.randn(
+                (b, self.positive_particles, c, n, h, w), device=device
+            )
+            target_view = target_time.view(b, 1, 1, 1, 1, 1)
+            positive_x = (
+                (1.0 - target_view) * positive_noise
+                + target_view * target_x.unsqueeze(1)
+            )
         else:
             gen = self.inner_model(noise, history, actions)
-            positive_x = target_x
+            positive_x = target_x.unsqueeze(1)
             # raw output from the U-Net. the inputs are
             # noise: (j*b, c, n, h, w) noise for future states s_(T+1), ..., s_(T+n)
             # history: (j*b, c, k, h, w) current+history states s_(T-k+1), ..., s_T
@@ -150,9 +203,14 @@ class Denoiser(nn.Module):
         loss = 0
         metrics = defaultdict(float)
         for i in range(n):
-            target_x_slice = positive_x[:, :, i].reshape((b, 1, c, h, w)) # (b, c, h, w) -> (b, 1, c, h, w)
+            target_x_slice = positive_x[:, :, :, i] # (b, P, c, h, w)
             gen_slice = gen[:, :, i].reshape((b, self.n_neg, c, h, w)) # (j*b, c, h, w) -> (b, j, c, h, w)
-            loss_i, info_i = self.drifting_loss(gen_slice, target_x_slice)
+            if self.objective == "drift_flow":
+                loss_i, info_i = self._mixed_positive_drift_loss(
+                    gen_slice, target_x_slice, replay
+                )
+            else:
+                loss_i, info_i = self.drifting_loss(gen_slice, target_x_slice)
             loss += loss_i
             for key, value in info_i.items():
                 metrics[key] += value
@@ -165,6 +223,8 @@ class Denoiser(nn.Module):
             averages['time/target_mean'] = target_time.mean().item()
             averages['time/delta_mean'] = delta.mean().item()
             averages['time/endpoint_fraction'] = replay.float().mean().item()
+            averages['time/grid_fraction'] = grid_replay.float().mean().item()
+            averages['time/positive_particles'] = self.positive_particles
         return loss, averages
 
     @torch.no_grad()

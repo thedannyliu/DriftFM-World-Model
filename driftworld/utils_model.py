@@ -16,6 +16,8 @@ def create_model(cfg, device):
         decay=cfg.train.decay,
         objective=objective,
         endpoint_replay_probability=drift_flow.get("endpoint_replay_probability", 0.25),
+        grid_replay_probability=drift_flow.get("grid_replay_probability", 0.0),
+        positive_particles=drift_flow.get("positive_particles", 1),
         time_sampling=drift_flow.get("time_sampling", "logit_normal"),
         time_mu=drift_flow.get("time_mu", -0.4),
         time_sigma=drift_flow.get("time_sigma", 1.0),

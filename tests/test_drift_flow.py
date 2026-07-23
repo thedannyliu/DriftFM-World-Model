@@ -30,7 +30,7 @@ class TinyWorldModel(nn.Module):
         return output
 
 
-def make_denoiser(objective):
+def make_denoiser(objective, **kwargs):
     return Denoiser(
         unet_name="TinyWorldModel",
         temp_list=(0.02, 0.05, 0.2),
@@ -39,6 +39,7 @@ def make_denoiser(objective):
         num_history_frames=2,
         decay=0.999,
         objective=objective,
+        **kwargs,
     )
 
 
@@ -101,3 +102,72 @@ def test_arbitrary_time_training_has_finite_gradient():
     assert 0.0 <= metrics["time/endpoint_fraction"] <= 1.0
     assert model.inner_model.time_embed.weight.grad is not None
     assert torch.isfinite(model.inner_model.time_embed.weight.grad).all()
+
+
+def test_grid_replay_samples_only_inference_intervals():
+    torch.manual_seed(4)
+    model = make_denoiser(
+        "drift_flow",
+        endpoint_replay_probability=0.0,
+        grid_replay_probability=1.0,
+    )
+    source, target, delta, endpoint, grid = model._sample_time_pairs(
+        256, torch.device("cpu")
+    )
+    observed = set(zip(source.tolist(), delta.tolist()))
+    expected = {
+        (0.0, 0.5),
+        (0.5, 0.5),
+        (0.0, 0.25),
+        (0.25, 0.25),
+        (0.5, 0.25),
+        (0.75, 0.25),
+    }
+    assert observed == expected
+    assert not endpoint.any()
+    assert grid.all()
+    torch.testing.assert_close(target, source + delta)
+
+
+def test_intermediate_uses_all_positive_particles_but_endpoint_uses_one():
+    batch = {
+        "image": torch.randn(2, 4, 3, 4, 4),
+        "action": torch.randn(2, 4, 2),
+    }
+    for endpoint_probability, expected_particles in ((0.0, 4), (1.0, 1)):
+        model = make_denoiser(
+            "drift_flow",
+            endpoint_replay_probability=endpoint_probability,
+            positive_particles=4,
+        )
+        observed = []
+        original = model.drifting_loss
+
+        def record_particles(gen, pos):
+            observed.append(pos.shape[1])
+            return original(gen, pos)
+
+        model.drifting_loss = record_particles
+        loss, metrics = model(batch, torch.device("cpu"))
+        assert torch.isfinite(loss)
+        assert set(observed) == {expected_particles}
+        assert metrics["time/positive_particles"] == 4
+
+
+def test_mixed_batch_keeps_endpoint_and_intermediate_positive_counts_separate():
+    model = make_denoiser("drift_flow", positive_particles=4)
+    gen = torch.randn(2, 4, 3, 2, 2, requires_grad=True)
+    pos = torch.randn(2, 4, 3, 2, 2)
+    observed = []
+
+    def record_groups(group_gen, group_pos):
+        observed.append((group_gen.shape[0], group_pos.shape[1]))
+        return group_gen.mean(), {"scale": float(group_pos.shape[1])}
+
+    model.drifting_loss = record_groups
+    loss, _ = model._mixed_positive_drift_loss(
+        gen, pos, torch.tensor([True, False])
+    )
+    loss.backward()
+    assert observed == [(1, 1), (1, 4)]
+    assert gen.grad is not None

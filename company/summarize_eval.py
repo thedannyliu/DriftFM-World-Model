@@ -24,6 +24,7 @@ def main():
     parser.add_argument("--baseline-dir", type=Path)
     parser.add_argument("--control-dir", type=Path)
     parser.add_argument("--driftflow-dir", type=Path)
+    parser.add_argument("--variant-dir", type=Path)
     args = parser.parse_args()
 
     if args.baseline_dir:
@@ -32,6 +33,13 @@ def main():
             "baseline_64": read_metrics(args.baseline_dir / "rollout_len-64_nfe-1.json"),
             "baseline_full": read_metrics(args.baseline_dir / "rollout_len-full_nfe-1.json"),
         }
+    elif args.variant_dir:
+        result = {"status": "complete"}
+        for length in ("64", "full"):
+            for nfe in (1, 2, 4):
+                result[f"variant_{length}_nfe{nfe}"] = read_metrics(
+                    args.variant_dir / f"rollout_len-{length}_nfe-{nfe}.json"
+                )
     else:
         result = {"status": "complete"}
         for length in ("64", "full"):

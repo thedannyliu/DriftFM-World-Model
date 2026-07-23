@@ -66,6 +66,8 @@ if [[ ${ROLE} == driftflow ]]; then
     MODEL_ARGS+=(
         model.drift_flow.time_sampling="${DRIFTFLOW_TIME_SAMPLING:-logit_normal}"
         model.drift_flow.endpoint_replay_probability="${DRIFTFLOW_ENDPOINT_REPLAY:-0.25}"
+        model.drift_flow.grid_replay_probability="${DRIFTFLOW_GRID_REPLAY:-0.0}"
+        model.drift_flow.positive_particles="${DRIFTFLOW_POSITIVE_PARTICLES:-1}"
     )
 fi
 
@@ -76,7 +78,7 @@ echo "[pilot] dependency preflight"
 echo "[pilot] role=${ROLE} tag=${EXPERIMENT_TAG:-main} gpus=${GPUS_PER_NODE} batch_per_gpu=${BATCH_PER_GPU} max_steps=${MAX_STEPS} seed=${SEED}"
 echo "[pilot] validation=episodes490:500 every=${VALIDATION_EVERY} batches=${VALIDATION_BATCHES} checkpoints=latest,best"
 if [[ ${ROLE} == driftflow ]]; then
-    echo "[pilot] driftflow_time_sampling=${DRIFTFLOW_TIME_SAMPLING:-logit_normal} endpoint_replay=${DRIFTFLOW_ENDPOINT_REPLAY:-0.25}"
+    echo "[pilot] driftflow_time_sampling=${DRIFTFLOW_TIME_SAMPLING:-logit_normal} endpoint_replay=${DRIFTFLOW_ENDPOINT_REPLAY:-0.25} grid_replay=${DRIFTFLOW_GRID_REPLAY:-0.0} positive_particles=${DRIFTFLOW_POSITIVE_PARTICLES:-1}"
 fi
 echo "[pilot] output=${OUTPUT_DIR} full_log=${FULL_LOG} wandb_project=${WANDB_PROJECT} wandb_run=${RUN_NAME}"
 if [[ -f ${OUTPUT_DIR}/ckpt-latest.pth ]]; then
