@@ -8,7 +8,14 @@ from pathlib import Path
 
 def read_metrics(path):
     metrics = json.loads(path.read_text())
-    keys = ("mse", "lpips", "seconds_per_frame", "final_block_vertex_error")
+    keys = (
+        "mse",
+        "ssim",
+        "psnr",
+        "lpips",
+        "seconds_per_frame",
+        "final_block_vertex_error",
+    )
     return {key: metrics[key] for key in keys if key in metrics}
 
 
