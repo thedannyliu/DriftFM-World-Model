@@ -16,6 +16,9 @@ WORKERS_PER_GPU=${WORKERS_PER_GPU:-4}
 MAX_STEPS=${MAX_STEPS:-10000}
 SEED=${SEED:-1}
 WANDB_PROJECT=${WANDB_PROJECT:-driftfm-world-model-company}
+EXPERIMENT_TAG=${EXPERIMENT_TAG:-}
+VALIDATION_EVERY=${VALIDATION_EVERY:-500}
+VALIDATION_BATCHES=${VALIDATION_BATCHES:-16}
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 
 if [[ ${ROLE} == control ]]; then
@@ -26,6 +29,11 @@ else
     CONFIG=pushT_driftflow
     RUN_NAME=company-driftflow-seed${SEED}
     OUTPUT_DIR=${ASSET_ROOT}/checkpoints/experiments/pushT_driftflow_posttrain_seed${SEED}
+fi
+
+if [[ -n ${EXPERIMENT_TAG} ]]; then
+    RUN_NAME=company-${EXPERIMENT_TAG}-seed${SEED}
+    OUTPUT_DIR=${ASSET_ROOT}/checkpoints/experiments/${EXPERIMENT_TAG}_seed${SEED}
 fi
 
 DATA_DIR=${ASSET_ROOT}/data/world_model_data/dataset_domain/all_data
@@ -47,11 +55,23 @@ if [[ -n ${WANDB_ENTITY:-} ]]; then
     WANDB_ARGS+=(wandb_info.entity="${WANDB_ENTITY}")
 fi
 
+MODEL_ARGS=()
+if [[ ${ROLE} == driftflow ]]; then
+    MODEL_ARGS+=(
+        model.drift_flow.time_sampling="${DRIFTFLOW_TIME_SAMPLING:-logit_normal}"
+        model.drift_flow.endpoint_replay_probability="${DRIFTFLOW_ENDPOINT_REPLAY:-0.25}"
+    )
+fi
+
 cd "${REPO_ROOT}/driftworld"
 echo "[pilot] dependency preflight"
 "${PYTHON_BIN}" -c \
     'import hydra, omegaconf, torch, wandb, zarr; import train, utils_model; print("[pilot] dependency_preflight=pass")'
-echo "[pilot] role=${ROLE} gpus=${GPUS_PER_NODE} batch_per_gpu=${BATCH_PER_GPU} max_steps=${MAX_STEPS} seed=${SEED}"
+echo "[pilot] role=${ROLE} tag=${EXPERIMENT_TAG:-main} gpus=${GPUS_PER_NODE} batch_per_gpu=${BATCH_PER_GPU} max_steps=${MAX_STEPS} seed=${SEED}"
+echo "[pilot] validation=episodes490:500 every=${VALIDATION_EVERY} batches=${VALIDATION_BATCHES} checkpoints=latest,best"
+if [[ ${ROLE} == driftflow ]]; then
+    echo "[pilot] driftflow_time_sampling=${DRIFTFLOW_TIME_SAMPLING:-logit_normal} endpoint_replay=${DRIFTFLOW_ENDPOINT_REPLAY:-0.25}"
+fi
 echo "[pilot] output=${OUTPUT_DIR} full_log=${FULL_LOG} wandb_project=${WANDB_PROJECT} wandb_run=${RUN_NAME}"
 if [[ -f ${OUTPUT_DIR}/ckpt-latest.pth ]]; then
     echo "[pilot] resume_checkpoint=${OUTPUT_DIR}/ckpt-latest.pth"
@@ -64,11 +84,13 @@ set +e
     --config-name="${CONFIG}" \
     train.seed="${SEED}" train.max_steps="${MAX_STEPS}" \
     train.init_checkpoint="${INIT_CHECKPOINT}" \
+    validation.enabled=true validation.every="${VALIDATION_EVERY}" \
+    validation.max_batches="${VALIDATION_BATCHES}" \
     data.dataset_path_dir="${DATA_DIR}" data.batch_size="${BATCH_PER_GPU}" \
     dataloader.num_workers="${WORKERS_PER_GPU}" \
     output_dir="${OUTPUT_DIR}" hydra.run.dir="${LOG_DIR}/hydra" \
-    "${WANDB_ARGS[@]}" 2>&1 | tee "${FULL_LOG}" | awk '
-        /Started new wandb|Resuming wandb|Saving latest ckpt|Saving final checkpoint/ {
+    "${WANDB_ARGS[@]}" "${MODEL_ARGS[@]}" 2>&1 | tee "${FULL_LOG}" | awk '
+        /Started new wandb|Resuming wandb|Saving latest ckpt|Saving final checkpoint|Saved best ckpt|validation\/loss:/ {
             print; fflush(); next
         }
         /loss_backprop:/ {

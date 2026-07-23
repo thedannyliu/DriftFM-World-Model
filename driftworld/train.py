@@ -10,12 +10,13 @@ import wandb
 import logging
 import random
 import json
+import shutil
 
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data.distributed import DistributedSampler
 
-from data.pushT_dataloader import get_pushT_loader
+from data.pushT_dataloader import get_pushT_loader, get_pushT_validation_loader
 from utils_model import create_model
 
 log = logging.getLogger(__name__)
@@ -96,12 +97,53 @@ def load_initial_model(model, state_dict):
     return incompatible.missing_keys
 
 
-def save_checkpoint_atomic(checkpoint, latest_path, second_latest_path):
+def save_checkpoint_atomic(checkpoint, latest_path):
     temporary_path = f"{latest_path}.tmp"
     torch.save(checkpoint, temporary_path)
-    if os.path.exists(latest_path):
-        os.replace(latest_path, second_latest_path)
     os.replace(temporary_path, latest_path)
+
+
+def copy_checkpoint_atomic(source_path, destination_path):
+    temporary_path = f"{destination_path}.tmp"
+    shutil.copyfile(source_path, temporary_path)
+    os.replace(temporary_path, destination_path)
+
+
+@torch.no_grad()
+def evaluate_validation(model, dataloader, cfg, device):
+    """Evaluate a fixed stochastic objective without advancing training RNG."""
+    training_rng_state = rng_state_dict()
+    was_training = model.training
+    random.seed(cfg.validation.seed)
+    np.random.seed(cfg.validation.seed)
+    torch.manual_seed(cfg.validation.seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(cfg.validation.seed)
+
+    totals = {}
+    num_batches = 0
+    model.eval()
+    try:
+        for nbatch in dataloader:
+            if num_batches >= cfg.validation.max_batches:
+                break
+            if cfg.data.normalize_img:
+                nbatch['image'] = (nbatch['image'] - 0.5) / 0.5
+            loss, metrics = model(nbatch, device)
+            metrics = dict(metrics)
+            metrics['loss'] = loss.item()
+            for key, value in metrics.items():
+                if torch.is_tensor(value):
+                    value = value.item()
+                totals[key] = totals.get(key, 0.0) + float(value)
+            num_batches += 1
+    finally:
+        model.train(was_training)
+        load_rng_state_dict(training_rng_state)
+
+    if num_batches == 0:
+        raise RuntimeError("Validation loader produced no batches")
+    return {f"validation/{key}": value / num_batches for key, value in totals.items()}
 
 def train(cfg):
     """
@@ -117,6 +159,14 @@ def train(cfg):
     if is_main():
         log.info("Creating dataloader")
     dataloader = get_pushT_loader(cfg, rank=rank, world_size=world_size)
+    validation_loader = None
+    if cfg.validation.enabled and is_main():
+        log.info(
+            f"Creating fixed validation loader: demos "
+            f"[{cfg.validation.demo_start}, "
+            f"{cfg.validation.demo_start + cfg.validation.num_demos})"
+        )
+        validation_loader = get_pushT_validation_loader(cfg)
 
     if is_main():
         log.info("Creating model")
@@ -150,10 +200,16 @@ def train(cfg):
 
     actual_step = 0 # current step
     to_skip = False # Whether to skip to the correct location in dataloader
+    best_val_loss = float('inf')
+    best_val_step = None
 
     if is_main():
         log.info("Creating model / Restoring checkpoint")
         os.makedirs(f"{cfg.output_dir}/ckpt_save", exist_ok=True)
+        legacy_second_latest = os.path.join(cfg.output_dir, "ckpt-2nd-latest.pth")
+        if os.path.exists(legacy_second_latest):
+            os.remove(legacy_second_latest)
+            log.info(f"Removed legacy checkpoint {legacy_second_latest}")
     barrier(world_size)
 
     # Load checkpoint
@@ -163,6 +219,8 @@ def train(cfg):
         optimizer.load_state_dict(ckpt['optimizer'])
         scheduler.load_state_dict(ckpt['scheduler'])
         actual_step = ckpt['step'] + 1
+        best_val_loss = ckpt.get('best_val_loss', best_val_loss)
+        best_val_step = ckpt.get('best_val_step', best_val_step)
         rank_states = ckpt.get('rng_state_by_rank')
         if rank_states is not None:
             if len(rank_states) != world_size:
@@ -235,6 +293,7 @@ def train(cfg):
     first_pass = True
     max_steps = cfg.train.get('max_steps')
     training_complete = False
+    last_validation_step = None
     for epoch_idx in range(start_ep, cfg.train.num_epochs + 1):
         dataloader.generator.manual_seed(
             cfg.train.seed + epoch_idx * world_size + rank
@@ -281,7 +340,33 @@ def train(cfg):
                     if k.startswith("loss_") or k == "lr":
                         log.info(f"{k}: {v}")
 
-            if actual_step % cfg.train.ckpt_every == 0:
+            validation_improved = False
+            should_validate = (
+                cfg.validation.enabled
+                and actual_step > 0
+                and actual_step % cfg.validation.every == 0
+            )
+            if should_validate:
+                if is_main():
+                    validation_metrics = evaluate_validation(
+                        inner, validation_loader, cfg, device
+                    )
+                    validation_loss = validation_metrics['validation/loss']
+                    if validation_loss < best_val_loss:
+                        best_val_loss = validation_loss
+                        best_val_step = actual_step
+                        validation_improved = True
+                    validation_metrics['validation/best_loss'] = best_val_loss
+                    validation_metrics['validation/best_step'] = best_val_step
+                    wandb.log(validation_metrics, step=actual_step)
+                    log.info(
+                        f"validation/loss: {validation_loss:.8f} | "
+                        f"best: {best_val_loss:.8f} at step {best_val_step}"
+                    )
+                last_validation_step = actual_step
+                barrier(world_size)
+
+            if actual_step % cfg.train.ckpt_every == 0 or should_validate:
                 rng_states = gather_rng_states(world_size)
                 if is_main():
                     log.info(f"(epoch {epoch_idx}) Saving latest ckpt at step {actual_step}")
@@ -291,33 +376,67 @@ def train(cfg):
                         'optimizer': optimizer.state_dict(),
                         'scheduler': scheduler.state_dict(),
                         'rng_state_by_rank': rng_states,
+                        'best_val_loss': best_val_loss,
+                        'best_val_step': best_val_step,
                     }
                     save_checkpoint_atomic(
                         checkpoint,
                         cfg.path_ckpt_latest,
-                        cfg.path_ckpt_2nd_latest,
                     )
+                    if validation_improved:
+                        copy_checkpoint_atomic(cfg.path_ckpt_latest, cfg.path_ckpt_best)
+                        log.info(f"Saved best ckpt at step {actual_step}")
                 barrier(world_size)
             actual_step += 1
         if training_complete:
             break
 
-    if max_steps is not None and actual_step > 0 and (actual_step - 1) % cfg.train.ckpt_every != 0:
+    needs_final_checkpoint = (
+        max_steps is not None
+        and actual_step > 0
+        and (
+            (actual_step - 1) % cfg.train.ckpt_every != 0
+            or (cfg.validation.enabled and last_validation_step != actual_step - 1)
+        )
+    )
+    if needs_final_checkpoint:
+        final_step = actual_step - 1
+        validation_improved = False
+        if cfg.validation.enabled and last_validation_step != final_step:
+            if is_main():
+                validation_metrics = evaluate_validation(inner, validation_loader, cfg, device)
+                validation_loss = validation_metrics['validation/loss']
+                if validation_loss < best_val_loss:
+                    best_val_loss = validation_loss
+                    best_val_step = final_step
+                    validation_improved = True
+                validation_metrics['validation/best_loss'] = best_val_loss
+                validation_metrics['validation/best_step'] = best_val_step
+                wandb.log(validation_metrics, step=final_step)
+                log.info(
+                    f"validation/loss: {validation_loss:.8f} | "
+                    f"best: {best_val_loss:.8f} at step {best_val_step}"
+                )
+            barrier(world_size)
         rng_states = gather_rng_states(world_size)
         if is_main():
-            log.info(f"Saving final checkpoint at step {actual_step - 1}")
+            log.info(f"Saving final checkpoint at step {final_step}")
             checkpoint = {
-                'step': actual_step - 1,
+                'step': final_step,
                 'model': inner.state_dict(),
                 'optimizer': optimizer.state_dict(),
                 'scheduler': scheduler.state_dict(),
                 'rng_state_by_rank': rng_states,
+                'best_val_loss': best_val_loss,
+                'best_val_step': best_val_step,
             }
             save_checkpoint_atomic(
                 checkpoint,
                 cfg.path_ckpt_latest,
-                cfg.path_ckpt_2nd_latest,
             )
+            if validation_improved:
+                copy_checkpoint_atomic(cfg.path_ckpt_latest, cfg.path_ckpt_best)
+                log.info(f"Saved best ckpt at step {final_step}")
         barrier(world_size)
 
     if world_size > 1 and dist.is_initialized():

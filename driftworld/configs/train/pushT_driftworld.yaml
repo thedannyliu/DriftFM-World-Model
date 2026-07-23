@@ -13,6 +13,16 @@ train:
   ckpt_every: 500
   decay: 0.999
 
+validation:
+  enabled: false
+  every: 500
+  max_batches: 16
+  seed: 314159
+  demo_start: 490
+  num_demos: 10
+  batch_size: 1
+  num_workers: 2
+
 opt:
   beta2: 0.95
   lr: 0.0000125
@@ -48,4 +58,4 @@ hydra:
 
 output_dir: "./pusht_checkpoints/${model.dir_name}"
 path_ckpt_latest: "${output_dir}/ckpt-latest.pth"
-path_ckpt_2nd_latest: "${output_dir}/ckpt-2nd-latest.pth"
+path_ckpt_best: "${output_dir}/ckpt-best.pth"

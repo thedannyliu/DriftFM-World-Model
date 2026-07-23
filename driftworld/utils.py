@@ -70,7 +70,8 @@ def list_zarr_paths(dataset_path_dir):
 
 def create_sample_indices(
         episode_ends:np.ndarray, sequence_length:int,
-        pad_before: int=0, pad_after: int=0):
+        pad_before: int=0, pad_after: int=0,
+        episode_start: int=0):
     """
     Generates indices for sampling fixed-length sequences from a buffer of multiple episodes.
     Args:
@@ -88,7 +89,7 @@ def create_sample_indices(
         The indices sample_start/end specify the portion of the sequence that the data fills, i.e. the rest of the sequence consists of padded 0s.
     """
     indices = list()
-    for i in range(len(episode_ends)):
+    for i in range(episode_start, len(episode_ends)):
         # ith episode spans the interval [episode_ends[i-1], episode_ends[i])
         start_idx = 0
         if i > 0:
@@ -181,18 +182,31 @@ class TrainDataset(torch.utils.data.Dataset):
                  id:int,
                  num_demos: int,
                  resize_scale: int, 
-                 stats=None):
+                 stats=None,
+                 demo_start: int=0,
+                 require_num_demos: bool=False):
 
         # read from zarr dataset
         dataset_root = zarr.open(store=dataset_path, mode='r')
 
         # limit number of demos
-        num_max_demos = dataset_root['meta']['episode_ends'][:].shape[0]
-        log.info(f"TrainDataset: num demos in dataset = {num_max_demos}")
-        if num_demos < num_max_demos:
-            num_max_demos = num_demos
-        num_max_frames = dataset_root['meta']['episode_ends'][num_max_demos-1]
-        log.info(f"TrainDataset: max num of frames in a demo (among the first {num_max_demos}) = {num_max_frames}")
+        total_demos = dataset_root['meta']['episode_ends'][:].shape[0]
+        if demo_start < 0 or num_demos < 1 or demo_start >= total_demos:
+            raise ValueError(
+                f"{dataset_path} has {total_demos} demos, cannot select "
+                f"{num_demos} starting at {demo_start}"
+            )
+        if require_num_demos and demo_start + num_demos > total_demos:
+            raise ValueError(
+                f"{dataset_path} has {total_demos} demos, cannot select "
+                f"[{demo_start}, {demo_start + num_demos})"
+            )
+        demo_stop = min(demo_start + num_demos, total_demos)
+        num_max_frames = dataset_root['meta']['episode_ends'][demo_stop - 1]
+        log.info(
+            f"TrainDataset: selected demos [{demo_start}, {demo_stop}) of {total_demos} "
+            f"through frame {num_max_frames}"
+        )
 
         # float32, [0,255], (N,96,96,3)
         # DO NOT /255 here because PIL Image class needs raw RGB values
@@ -215,7 +229,7 @@ class TrainDataset(torch.utils.data.Dataset):
             'agent_pos': dataset_root['data']['state'][:num_max_frames,:2],
             'action': dataset_root['data']['action'][:num_max_frames]
         }
-        episode_ends = dataset_root['meta']['episode_ends'][:num_max_demos]
+        episode_ends = dataset_root['meta']['episode_ends'][:demo_stop]
 
         # compute start and end of each state-action sequence
         # also handles padding
@@ -223,7 +237,8 @@ class TrainDataset(torch.utils.data.Dataset):
             episode_ends=episode_ends,
             sequence_length=pred_horizon,
             pad_before=obs_horizon-1,
-            pad_after=action_horizon-1)
+            pad_after=action_horizon-1,
+            episode_start=demo_start)
 
         if stats == None:
             stats = dict()

@@ -17,6 +17,7 @@ def main():
     args = parser.parse_args()
 
     checkpoint_path = args.output_dir / "ckpt-latest.pth"
+    best_path = args.output_dir / "ckpt-best.pth"
     checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
     run_id_path = args.output_dir / "wandb_run_id.json"
     run_id = json.loads(run_id_path.read_text())["run_id"] if run_id_path.exists() else None
@@ -29,6 +30,10 @@ def main():
         "step": checkpoint["step"],
         "checkpoint": str(checkpoint_path),
         "checkpoint_mib": round(checkpoint_path.stat().st_size / 2**20, 1),
+        "best_checkpoint": str(best_path) if best_path.exists() else None,
+        "best_checkpoint_mib": round(best_path.stat().st_size / 2**20, 1) if best_path.exists() else None,
+        "best_validation_loss": checkpoint.get("best_val_loss"),
+        "best_validation_step": checkpoint.get("best_val_step"),
         "wandb_run_id": run_id,
         "last_logged_loss": float(losses[-1]) if losses else None,
         "full_log": str(args.log),
