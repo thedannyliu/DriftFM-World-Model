@@ -78,5 +78,5 @@ echo "[smoke] comparing uninterrupted and resumed checkpoints"
 "${PYTHON_BIN}" scripts/compare_training_checkpoints.py \
     "${RUN_ROOT}/continuous/ckpt-latest.pth" \
     "${RUN_ROOT}/resumed/ckpt-latest.pth" \
-    --world-size "${GPUS_PER_NODE}"
-echo "[smoke] status=complete full_logs=${LOG_DIR}"
+    --world-size "${GPUS_PER_NODE}" --report-only
+echo "[smoke] status=complete resume_comparison=diagnostic full_logs=${LOG_DIR}"

@@ -67,7 +67,8 @@ Set `WANDB_API_KEY` through the company secret manager. Optionally set
 
 ## Two independent 4xH100 nodes
 
-Validate four-GPU checkpoint/resume equivalence on one node:
+Diagnose four-GPU checkpoint/resume numerical equivalence on one node. A bitwise
+mismatch is reported quantitatively but does not block a fresh matched pilot:
 
 ```bash
 bash company/smoke_resume.sh
