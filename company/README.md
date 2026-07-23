@@ -139,6 +139,17 @@ checkpoint events. Pressing Ctrl-C stops only the viewer; the printed queue PID 
 running in the background. Set `OVERNIGHT_FOLLOW_LOGS=0` for an immediate return or
 change the interval with `PILOT_PRINT_EVERY`.
 
+Inspect overnight progress, missing tasks, W&B run IDs, retained checkpoint size, and
+rollout metrics with:
+
+```bash
+python3 company/status_overnight.py all
+```
+
+Use `node-a` or `node-b` instead of `all` to restrict the expected training tasks.
+Run the command once on each node when `/user-volume` is node-local; completion
+markers and evaluation results under `/group-volume` remain shared.
+
 Post-training holds out episodes 490–499 from each 500-episode domain and evaluates 16
 fixed adaptation-validation batches every 500 updates. The released parent may have
 already seen these episodes, so this detects post-training overfit but is not an unseen
