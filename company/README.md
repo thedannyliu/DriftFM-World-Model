@@ -150,6 +150,23 @@ Use `node-a` or `node-b` instead of `all` to restrict the expected training task
 Run the command once on each node when `/user-volume` is node-local; completion
 markers and evaluation results under `/group-volume` remain shared.
 
+After the initial NFE2/4 failure, run the two isolated transport-repair hypotheses on
+the two nodes:
+
+```bash
+bash company/run_transport_repair.sh node-a  # 16 intermediate positives
+bash company/run_transport_repair.sh node-b  # 25% inference-grid replay
+```
+
+Each starts a separate resumable W&B run and output directory, then evaluates
+NFE1/2/4 for both `latest` and `best`. Existing trained variants can be evaluated
+without retraining, for example:
+
+```bash
+bash company/run_variant_eval.sh driftflow-uniform latest
+bash company/run_variant_eval.sh driftflow-replay50 latest
+```
+
 Post-training holds out episodes 490–499 from each 500-episode domain and evaluates 16
 fixed adaptation-validation batches every 500 updates. The released parent may have
 already seen these episodes, so this detects post-training overfit but is not an unseen
