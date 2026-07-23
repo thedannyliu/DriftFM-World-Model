@@ -10,7 +10,8 @@ NODE_ROLE=$1
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 ASSET_ROOT=${DRIFTFLOWWORLD_ASSET_ROOT:-/group-volume/danny-dataset/driftworld}
 PYTHON_BIN=${PYTHON_BIN:-python3}
-MAX_STEPS=${MAX_STEPS:-10000}
+PRIMARY_STEPS=${OVERNIGHT_PRIMARY_STEPS:-20000}
+REPLICATION_STEPS=${OVERNIGHT_REPLICATION_STEPS:-10000}
 EVAL_NUM_VIDEOS=${EVAL_NUM_VIDEOS:-25}
 WANDB_PROJECT=${WANDB_PROJECT:-driftfm-world-model-company}
 read -r -a SEEDS <<< "${OVERNIGHT_SEEDS:-1 2 3}"
@@ -22,9 +23,8 @@ fi
 
 export WANDB_MODE=online
 export WANDB_PROJECT
-export MAX_STEPS
 
-echo "[overnight] node=${NODE_ROLE} seeds=${SEEDS[*]} max_steps=${MAX_STEPS} wandb_mode=${WANDB_MODE} wandb_project=${WANDB_PROJECT}"
+echo "[overnight] node=${NODE_ROLE} seeds=${SEEDS[*]} primary_steps=${PRIMARY_STEPS} replication_steps=${REPLICATION_STEPS} wandb_mode=${WANDB_MODE} wandb_project=${WANDB_PROJECT}"
 "${PYTHON_BIN}" -c 'import torch, wandb; assert torch.cuda.device_count() == 4, torch.cuda.device_count(); print(f"[overnight] preflight=pass torch={torch.__version__} wandb={wandb.__version__} gpus={torch.cuda.device_count()}")'
 
 wait_for_completion() {
@@ -39,12 +39,16 @@ wait_for_completion() {
 
 if [[ ${NODE_ROLE} == node-a ]]; then
     for seed in "${SEEDS[@]}"; do
-        echo "[overnight] start control seed=${seed}"
-        SEED=${seed} bash "${REPO_ROOT}/company/run_pilot.sh" control
+        STEPS=${REPLICATION_STEPS}
+        if [[ ${seed} == 1 ]]; then
+            STEPS=${PRIMARY_STEPS}
+        fi
+        echo "[overnight] start control seed=${seed} steps=${STEPS}"
+        SEED=${seed} MAX_STEPS=${STEPS} bash "${REPO_ROOT}/company/run_pilot.sh" control
         echo "[overnight] complete control seed=${seed}"
 
         if [[ ${seed} == 1 ]]; then
-            DRIFTFLOW_MARKER=${ASSET_ROOT}/checkpoints/experiments/pushT_driftflow_posttrain_seed1/complete-step${MAX_STEPS}.json
+            DRIFTFLOW_MARKER=${ASSET_ROOT}/checkpoints/experiments/pushT_driftflow_posttrain_seed1/complete-step${PRIMARY_STEPS}.json
             wait_for_completion "${DRIFTFLOW_MARKER}" "driftflow-seed1"
             echo "[overnight] start paired_eval seed=1 videos=${EVAL_NUM_VIDEOS}"
             SEED=1 EVAL_NUM_VIDEOS=${EVAL_NUM_VIDEOS} \
@@ -54,8 +58,12 @@ if [[ ${NODE_ROLE} == node-a ]]; then
     done
 else
     for seed in "${SEEDS[@]}"; do
-        echo "[overnight] start driftflow seed=${seed}"
-        SEED=${seed} bash "${REPO_ROOT}/company/run_pilot.sh" driftflow
+        STEPS=${REPLICATION_STEPS}
+        if [[ ${seed} == 1 ]]; then
+            STEPS=${PRIMARY_STEPS}
+        fi
+        echo "[overnight] start driftflow seed=${seed} steps=${STEPS}"
+        SEED=${seed} MAX_STEPS=${STEPS} bash "${REPO_ROOT}/company/run_pilot.sh" driftflow
         echo "[overnight] complete driftflow seed=${seed}"
     done
 fi

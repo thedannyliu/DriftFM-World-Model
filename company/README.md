@@ -114,10 +114,12 @@ wandb login
 bash company/start_overnight.sh node-b
 ```
 
-The queue forces online W&B logging. It runs matched 10k-step seeds 1, 2, and 3. After
-both seed-1 arms complete, Node A evaluates seed 1 while Node B starts seed 2. Queue
-stdout is detached under `/user-volume/driftworld/logs/overnight/`; each training and
-evaluation retains its own full log in the existing task-specific directory.
+The queue forces online W&B logging. Seed 1 runs for 20k matched steps; replication
+seeds 2 and 3 run for 10k matched steps each. After both seed-1 arms complete, Node A
+evaluates seed 1 while Node B starts seed 2. Override these targets with
+`OVERNIGHT_PRIMARY_STEPS` and `OVERNIGHT_REPLICATION_STEPS`. Queue stdout is detached
+under `/user-volume/driftworld/logs/overnight/`; each training and evaluation retains
+its own full log in the existing task-specific directory.
 
 Terminal output is intentionally short JSON suitable for pasting back. Full logs stay
 under `/user-volume/driftworld/logs/`. Useful overrides include `MAX_STEPS`,

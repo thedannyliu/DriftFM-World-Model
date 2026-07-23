@@ -12,8 +12,8 @@ DATA_DIR=${ASSET_ROOT}/data/world_model_data/dataset_domain/all_data
 CONTROL_OUT=${ASSET_ROOT}/checkpoints/experiments/pushT_driftworld_continue_seed${SEED}
 DRIFTFLOW_OUT=${ASSET_ROOT}/checkpoints/experiments/pushT_driftflow_posttrain_seed${SEED}
 REWARD_DIR=${ASSET_ROOT}/checkpoints/official/pusht_checkpoints/reward
-CONTROL_METRICS=${RUNTIME_ROOT}/results/pilot10k-seed${SEED}-control
-DRIFTFLOW_METRICS=${RUNTIME_ROOT}/results/pilot10k-seed${SEED}-driftflow
+CONTROL_METRICS=${RUNTIME_ROOT}/results/pilot-seed${SEED}-control
+DRIFTFLOW_METRICS=${RUNTIME_ROOT}/results/pilot-seed${SEED}-driftflow
 LOG_DIR=${RUNTIME_ROOT}/logs/pilot-eval/${TIMESTAMP}
 mkdir -p "${CONTROL_METRICS}" "${DRIFTFLOW_METRICS}" "${LOG_DIR}"
 
