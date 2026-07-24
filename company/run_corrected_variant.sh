@@ -16,6 +16,8 @@ REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 ASSET_ROOT=${DRIFTFLOWWORLD_ASSET_ROOT:-/group-volume/danny-dataset/driftworld}
 SEED=${SEED:-1}
 EVAL_NUM_VIDEOS=${EVAL_NUM_VIDEOS:-25}
+read -r -a EVAL_NFES <<< "${CORRECTED_EVAL_NFES:-1 2 4}"
+ROLLOUT_BEST=${ROLLOUT_BEST:-0}
 read -r -a MILESTONES <<< "${STAGED_MILESTONES:-1000 3000 10000}"
 
 if (( ${#MILESTONES[@]} < 1 )); then
@@ -36,13 +38,18 @@ export DRIFTFLOW_TRANSPORT_PARAMETERIZATION=endpoint_normalized
 export DRIFTFLOW_TIME_SAMPLING=${DRIFTFLOW_TIME_SAMPLING:-logit_normal}
 export DRIFTFLOW_ENDPOINT_REPLAY=${DRIFTFLOW_ENDPOINT_REPLAY:-0.25}
 export DRIFTFLOW_GRID_REPLAY=${DRIFTFLOW_GRID_REPLAY:-0.0}
+export DRIFTFLOW_GRID_MAX_NFE=${DRIFTFLOW_GRID_MAX_NFE:-4}
 export DRIFTFLOW_POSITIVE_PARTICLES=${DRIFTFLOW_POSITIVE_PARTICLES:-1}
 export DRIFTFLOW_COMPOSED_SOURCE_REPLAY=${DRIFTFLOW_COMPOSED_SOURCE_REPLAY:-0.0}
+export DRIFTFLOW_COMPOSED_SOURCE_STEPS=${DRIFTFLOW_COMPOSED_SOURCE_STEPS:-2}
 export EXPERIMENT_TAG
 export SEED
 export EVAL_NUM_VIDEOS
 export WANDB_LOG_EVAL=1
 export WANDB_MODE=online
+if [[ ${ROLLOUT_BEST} == 1 ]]; then
+    export SAVE_VALIDATION_BEST=false
+fi
 
 if [[ -z ${WANDB_API_KEY:-} && ( -z ${HOME:-} || ! -f ${HOME}/.netrc ) ]]; then
     echo "W&B credentials not found; run 'wandb login --relogin' first" >&2
@@ -59,7 +66,7 @@ evaluate_checkpoint() {
     else
         echo "[corrected] start_eval checkpoint=${checkpoint_kind} milestone=${milestone} videos=${EVAL_NUM_VIDEOS}"
         set +e
-        EVAL_NFES="1 2 4" EVAL_RESULT_LABEL=step${milestone} \
+        EVAL_NFES="${EVAL_NFES[*]}" EVAL_RESULT_LABEL=step${milestone} \
             bash "${REPO_ROOT}/company/run_variant_eval.sh" \
                 "${EXPERIMENT_TAG}" "${checkpoint_kind}" \
             | awk '!/^[{].*[}]$/ { print; fflush() }'
@@ -75,8 +82,8 @@ evaluate_checkpoint() {
 }
 
 echo "[corrected] tag=${EXPERIMENT_TAG} seed=${SEED} milestones=${MILESTONES[*]}"
-echo "[corrected] time_sampling=${DRIFTFLOW_TIME_SAMPLING} endpoint_replay=${DRIFTFLOW_ENDPOINT_REPLAY} grid_replay=${DRIFTFLOW_GRID_REPLAY} positive_particles=${DRIFTFLOW_POSITIVE_PARTICLES} composed_source_replay=${DRIFTFLOW_COMPOSED_SOURCE_REPLAY}"
-echo "[corrected] eval=latest-at-each,best-through-${FINAL_MILESTONE} videos=${EVAL_NUM_VIDEOS} checkpoints=latest,best wandb_mode=online"
+echo "[corrected] time_sampling=${DRIFTFLOW_TIME_SAMPLING} endpoint_replay=${DRIFTFLOW_ENDPOINT_REPLAY} grid_replay=${DRIFTFLOW_GRID_REPLAY} grid_max_nfe=${DRIFTFLOW_GRID_MAX_NFE} positive_particles=${DRIFTFLOW_POSITIVE_PARTICLES} composed_source_replay=${DRIFTFLOW_COMPOSED_SOURCE_REPLAY} composed_source_steps=${DRIFTFLOW_COMPOSED_SOURCE_STEPS}"
+echo "[corrected] eval=latest-at-each,best-through-${FINAL_MILESTONE} videos=${EVAL_NUM_VIDEOS} nfes=${EVAL_NFES[*]} rollout_best=${ROLLOUT_BEST} checkpoints=latest,best wandb_mode=online"
 
 RESULT_ARGS=()
 for MILESTONE in "${MILESTONES[@]}"; do
@@ -90,6 +97,16 @@ for MILESTONE in "${MILESTONES[@]}"; do
         echo "[corrected] complete_training target_steps=${MILESTONE}"
     fi
     evaluate_checkpoint latest "${MILESTONE}"
+    if [[ ${ROLLOUT_BEST} == 1 ]]; then
+        OUTPUT_DIR=${ASSET_ROOT}/checkpoints/experiments/${EXPERIMENT_TAG}_seed${SEED}
+        "${PYTHON_BIN:-python3}" "${REPO_ROOT}/company/promote_rollout_best.py" \
+            --name "${EXPERIMENT_TAG}" --step "${MILESTONE}" \
+            --result "${LATEST_MARKER}" \
+            --latest "${OUTPUT_DIR}/ckpt-latest.pth" \
+            --best "${OUTPUT_DIR}/ckpt-best.pth" \
+            --state "${OUTPUT_DIR}/rollout-best.json" \
+            --nfes "${EVAL_NFES[@]}"
+    fi
 done
 
 evaluate_checkpoint best "${FINAL_MILESTONE}"
