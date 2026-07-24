@@ -204,6 +204,25 @@ Each node evaluates four existing latest/best checkpoints sequentially, logs eve
 rollout summary online to W&B, keeps parameterization-specific metrics separate from
 the original evaluations, and prints one compact final JSON.
 
+Train the corrected parameterization from the official checkpoint on two matched
+4xH100 nodes:
+
+```bash
+# Node A: one positive target particle
+bash company/run_corrected_training.sh node-a
+
+# Node B: 16 positive target particles
+bash company/run_corrected_training.sh node-b
+```
+
+Both arms use seed 1, logit-normal time sampling, endpoint replay 0.25, no grid
+replay, and online W&B. They stop at 1k, 3k, and 10k updates and evaluate the
+corresponding `latest` checkpoint at NFE 1/2/4 on 25 videos. At 10k they also
+evaluate the minimum-validation-loss checkpoint selected over the full run. Each
+milestone has a separate result marker, so rerunning the command skips completed
+stages and resumes an incomplete training stage from `ckpt-latest.pth` using the
+same W&B run. Only `ckpt-latest.pth` and `ckpt-best.pth` are retained.
+
 Post-training holds out episodes 490–499 from each 500-episode domain and evaluates 16
 fixed adaptation-validation batches every 500 updates. The released parent may have
 already seen these episodes, so this detects post-training overfit but is not an unseen
