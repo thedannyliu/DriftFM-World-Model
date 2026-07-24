@@ -262,6 +262,39 @@ The report reads checkpoints, evaluation markers, selections, and W&B run IDs fr
 on node-local `/user-volume` logs. Use `node-a`, `node-b`, `node-c`, or `node-d`
 instead of `all` for a shorter report.
 
+### Aggressive four-node weekend queues
+
+The follow-up in `docs/weekend-research-plan.md` schedules substantially more than
+72 hours per node:
+
+```bash
+# Run exactly one line on each independent 4xH100 node.
+bash company/run_weekend_research_queue.sh node-a
+bash company/run_weekend_research_queue.sh node-b
+bash company/run_weekend_research_queue.sh node-c
+bash company/run_weekend_research_queue.sh node-d
+```
+
+Nodes A/B/C each schedule about 2.9M updates: twelve 30k screens, then the winner on
+five seeds through 400k and runner-up on three seeds through 200k. Node D schedules
+5.4M updates from six matched causal arms × three seeds through 300k. At an
+optimistic 30k updates/hour this is about 97 hours on Nodes A/B/C and 180 hours on
+Node D, before NFE1/2/4/8 evaluation overhead.
+
+The commands are marker-gated and resumable. Every training process reuses its W&B
+run ID. Validation metrics remain online, but weekend runs retain rollout-selected
+`best` rather than validation-loss-selected `best`; only `latest` and `best` model
+files exist. A 25-video rollout is evaluated at every milestone, and final 100-video
+latest/best evaluations are logged online.
+The 72 seed-specific output directories use approximately 18.2 GiB for checkpoints
+at the observed 129.6 MiB per file.
+
+Print a pasteable shared status report from any node:
+
+```bash
+python3 company/status_weekend_research.py all
+```
+
 Post-training holds out episodes 490–499 from each 500-episode domain and evaluates 16
 fixed adaptation-validation batches every 500 updates. The released parent may have
 already seen these episodes, so this detects post-training overfit but is not an unseen

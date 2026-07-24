@@ -7,7 +7,9 @@ order:
 2. [`literature-review.md`](literature-review.md) records the novelty boundary.
 3. [`experiments.md`](experiments.md) records hypotheses, jobs, metrics, and decisions.
 4. [`results/`](results/) contains dated, immutable experiment snapshots and analysis.
-5. [`research-idea.md`](research-idea.md) contains the broader project proposal.
+5. [`weekend-research-plan.md`](weekend-research-plan.md) defines the current
+   four-node aggressive follow-up.
+6. [`research-idea.md`](research-idea.md) contains the broader project proposal.
 
 Each experiment table answers one question. Every run records the task, seed,
 manifest, GPU, code commit, parent/output checkpoint, W&B project and run ID, metrics,

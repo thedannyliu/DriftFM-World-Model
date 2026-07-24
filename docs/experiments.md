@@ -73,6 +73,18 @@ batches with fixed stochastic-loss RNG. It never advances training RNG.
 | D2j | running (screen complete; Node D selected training) | Zero-initialized time adapters need an endpoint warmup or a different fine-tuning rate before arbitrary-time supervision can specialize safely. | K=16: endpoint-only warmup for 1k or 3k, learning rate ×0.5/×2, and grid replay .50. | Warmup and lr×.5 fail. lr×2 wins the balanced seed-1 screen, but replication is mixed and seed-1 60k NFE4 is 22.61% worse than NFE1. The early gain is transient; grid .50 remains the stronger NFE4-specific screen. |
 | D2k | running (all long queues; `20260724` snapshot) | A 10k seed-1 winner is real rather than selection noise, and deeper post-training continues improving rather than overfitting. | Per-node 10k winner → seeds 2/3 at 1k/3k/10k → all seeds at 30k/60k/100k; final 100-video latest/best NFE1/2/4/8. Total 340k–350k updates per node. | Deeper is not uniformly better: K=32 and lr×2 regress by 60k–100k, while K=1 peaks around NFE2. Validation-best is often rollout-misaligned. Keep queues running; the decisive next result is 30k cross-seed replication of K=16/grid=.25/source-replay=.25. Full snapshot: [2026-07-24 report](results/2026-07-24-long-queue-interim.md). |
 
+### Q2 weekend follow-up — What makes corrected local maps composable?
+
+| ID | Status | Hypothesis | Experiment | Decision gate |
+| --- | --- | --- | --- | --- |
+| D2l | ready (weekend Node A) | Exact-grid and composed-source replay are complementary rather than independently sufficient. | K=16 controls plus grid `.125/.25/.50` × source replay `.10/.25/.50`; 30k screen, winner five seeds to 400k, runner-up three seeds to 200k. | Joint treatment must beat both single-factor controls and replicate on at least three winner seeds. |
+| D2m | ready (weekend Node B) | The maximum dyadic grid depth must match inference depth for NFE8 to improve. | Grid max NFE `2/4/8/16` × probability `.125/.25/.50`, with K=16 and source replay `.25`; evaluate NFE1/2/4/8. | Support requires reproducible NFE8 improvement without material NFE1/2 regression and a stable saturation point. |
+| D2n | ready (weekend Node C) | Source-distribution mismatch depends on how accurately the EMA model composes the training source. | EMA source-composition steps `1/2/4/8` × replay `.10/.25/.50`, fixed K=16/grid `.25`. | A reproducible composition-depth optimum must improve higher-NFE dynamics; equivalent depths reject the mechanism. |
+| D2o | ready (weekend Node D) | The grid/source interaction survives matched controls and its K dependence can be isolated. | Base, grid-only, source-only, and joint K=1/16/32; three seeds each through 300k with 100-video latest/rollout-best evaluation. | Joint K=16 must beat base and both single-factor controls across seeds; K sweep determines whether particles are necessary or only reduce variance. |
+
+Full preregistration and resource schedule:
+[`weekend-research-plan.md`](weekend-research-plan.md).
+
 ## Q3 — Where should a fixed planning budget be spent?
 
 | ID | Status | Task / seeds | Manifest | GPU | Checkpoint / output | W&B | Metrics | Decision |
