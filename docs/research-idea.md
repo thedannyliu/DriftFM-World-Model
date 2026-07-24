@@ -604,7 +604,36 @@ flow-map 的 direct map 與 composed map consistency 本身已有相關研究，
 
 ---
 
-# 8. NFE-mixed self-forcing
+# 8. Two forms of NFE-mixed self-forcing
+
+## 8.1 Transport-time composed-source replay
+
+在 endpoint-normalized transport 修正後，剩餘的 NFE gap 可能來自 training source
+永遠是 analytic interpolant，但 inference 的中間 state 是模型自己前幾步的輸出。
+因此以機率 (p_{\mathrm{src}}) 將 analytic source 換成 detached 的 two-step EMA
+composition：
+
+[
+\tilde z_{\tau_s}
+=
+\operatorname{sg}
+\left[
+T_{\bar\theta}^{\tau_s/2\rightarrow\tau_s}
+\circ
+T_{\bar\theta}^{0\rightarrow\tau_s/2}
+(\epsilon)
+\right].
+]
+
+接著仍以相同 conditional DFM objective 將
+(\tilde z_{\tau_s}) transport 到 analytic target marginal。這不是額外的
+consistency loss；它直接把 local map 的 source distribution 改成 test-time
+composition 真正會遇到的 distribution。初始只測
+(p_{\mathrm{src}}\in\{0.1,0.25,0.5\})，並保留 (p_{\mathrm{src}}=0) 作為
+matched control。若 NFE4 改善但 NFE1 不變，才值得進一步發展成 adaptive 或
+motion-gated replay。
+
+## 8.2 Autoregressive-history NFE mixing
 
 DriftWorld 的 self-forcing 第二階段會將自己生成、且 detach 的 history frames 作為下一次預測輸入，以降低 autoregressive train-test mismatch。([arXiv][1])
 

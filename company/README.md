@@ -223,6 +223,33 @@ milestone has a separate result marker, so rerunning the command skips completed
 stages and resumes an incomplete training stage from `ckpt-latest.pth` using the
 same W&B run. Only `ckpt-latest.pth` and `ckpt-best.pth` are retained.
 
+For a four-node allocation with more than 20 hours available per 4xH100 node, launch
+one independent queue on each node:
+
+```bash
+bash company/run_long_research_queue.sh node-a
+bash company/run_long_research_queue.sh node-b
+bash company/run_long_research_queue.sh node-c
+bash company/run_long_research_queue.sh node-d
+```
+
+Node A screens K=1 time-pair curricula and includes the basic corrected Node A run.
+Node B screens K=2/4/8/16/32 and includes the basic corrected Node B run. Node C
+tests two-step EMA composed-source replay at probabilities 0.10/0.25/0.50, including
+its interaction with K and grid replay. Node D tests 1k/3k endpoint warmup,
+half/double learning rates, and stronger grid replay.
+
+Every candidate is trained and evaluated at 1k/3k/10k. Each node then selects its
+own seed-1 candidate using a preregistered score over full-rollout LPIPS, final block
+vertex error, and NFE monotonicity. The selected configuration is screened on seeds
+2 and 3, and all three seeds continue to 30k/60k/100k. A final 100-video evaluation
+runs NFE 1/2/4/8 on both `latest` and `best`. Nodes A/B/D schedule 340k total
+updates and Node C 350k; even the fastest observed company throughput implies more
+than 20 hours before evaluation overhead. Completed stages are marker-gated, so the
+same command safely resumes after a node timeout. A failed candidate, replication,
+or final evaluation is recorded and skipped without stopping the remaining queue;
+its resumable `latest` state is retained for a later retry.
+
 Post-training holds out episodes 490–499 from each 500-episode domain and evaluates 16
 fixed adaptation-validation batches every 500 updates. The released parent may have
 already seen these episodes, so this detects post-training overfit but is not an unseen
