@@ -250,6 +250,18 @@ same command safely resumes after a node timeout. A failed candidate, replicatio
 or final evaluation is recorded and skipped without stopping the remaining queue;
 its resumable `latest` state is retained for a later retry.
 
+From any node, summarize all shared queue progress and rollout results in a compact
+terminal report suitable for pasting back:
+
+```bash
+python3 company/status_long_research.py all
+```
+
+The report reads checkpoints, evaluation markers, selections, and W&B run IDs from
+`/group-volume/danny-dataset/driftworld/checkpoints/experiments`; it does not depend
+on node-local `/user-volume` logs. Use `node-a`, `node-b`, `node-c`, or `node-d`
+instead of `all` for a shorter report.
+
 Post-training holds out episodes 490–499 from each 500-episode domain and evaluates 16
 fixed adaptation-validation batches every 500 updates. The released parent may have
 already seen these episodes, so this detects post-training overfit but is not an unseen
