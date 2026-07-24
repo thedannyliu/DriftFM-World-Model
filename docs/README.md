@@ -6,7 +6,8 @@ order:
 1. [`research-protocol.md`](research-protocol.md) locks comparisons and decision gates.
 2. [`literature-review.md`](literature-review.md) records the novelty boundary.
 3. [`experiments.md`](experiments.md) records hypotheses, jobs, metrics, and decisions.
-4. [`research-idea.md`](research-idea.md) contains the broader project proposal.
+4. [`results/`](results/) contains dated, immutable experiment snapshots and analysis.
+5. [`research-idea.md`](research-idea.md) contains the broader project proposal.
 
 Each experiment table answers one question. Every run records the task, seed,
 manifest, GPU, code commit, parent/output checkpoint, W&B project and run ID, metrics,

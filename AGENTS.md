@@ -108,6 +108,8 @@ Research documentation lives under `docs/`:
 - `docs/research-protocol.md`: locked claims, gates, and evaluation protocol.
 - `docs/literature-review.md`: concise related-work and novelty audit.
 - `docs/experiments.md`: append-only hypothesis/experiment/result tables.
+- `docs/results/`: dated metric snapshots and research decisions; interim reports
+  must label incomplete queues and keep different evaluation-set sizes separate.
 - `docs/manifests/`: versioned experiment inputs; generated outputs stay on scratch.
 
 The PACE environment and all large artifacts live under
