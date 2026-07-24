@@ -15,6 +15,7 @@ train:
 
 validation:
   enabled: false
+  save_best_checkpoint: true
   every: 500
   max_batches: 16
   seed: 314159

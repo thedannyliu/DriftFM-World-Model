@@ -383,7 +383,7 @@ def train(cfg):
                         checkpoint,
                         cfg.path_ckpt_latest,
                     )
-                    if validation_improved:
+                    if validation_improved and cfg.validation.save_best_checkpoint:
                         copy_checkpoint_atomic(cfg.path_ckpt_latest, cfg.path_ckpt_best)
                         log.info(f"Saved best ckpt at step {actual_step}")
                 barrier(world_size)
@@ -434,7 +434,7 @@ def train(cfg):
                 checkpoint,
                 cfg.path_ckpt_latest,
             )
-            if validation_improved:
+            if validation_improved and cfg.validation.save_best_checkpoint:
                 copy_checkpoint_atomic(cfg.path_ckpt_latest, cfg.path_ckpt_best)
                 log.info(f"Saved best ckpt at step {final_step}")
         barrier(world_size)

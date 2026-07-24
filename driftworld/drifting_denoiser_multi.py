@@ -34,9 +34,11 @@ class Denoiser(nn.Module):
                  objective: str = "driftworld",
                  endpoint_replay_probability: float = 0.25,
                  grid_replay_probability: float = 0.0,
+                 grid_max_nfe: int = 4,
                  positive_particles: int = 1,
                  transport_parameterization: str = "residual",
                  composed_source_replay_probability: float = 0.0,
+                 composed_source_steps: int = 2,
                  time_sampling: str = "logit_normal",
                  time_mu: float = -0.4,
                  time_sigma: float = 1.0,
@@ -46,6 +48,8 @@ class Denoiser(nn.Module):
             raise ValueError(f"Unknown objective: {objective}")
         if endpoint_replay_probability + grid_replay_probability > 1.0:
             raise ValueError("Endpoint and grid replay probabilities must sum to at most one")
+        if grid_max_nfe < 2 or grid_max_nfe & (grid_max_nfe - 1):
+            raise ValueError("grid_max_nfe must be a power of two and at least two")
         if positive_particles < 1:
             raise ValueError("positive_particles must be at least one")
         if transport_parameterization not in {"residual", "endpoint_normalized"}:
@@ -56,6 +60,8 @@ class Denoiser(nn.Module):
             raise ValueError(
                 "composed_source_replay_probability must be between zero and one"
             )
+        if composed_source_steps < 1:
+            raise ValueError("composed_source_steps must be at least one")
         self.objective = objective
         self.inner_model = UNet_model_dict[unet_name](
             num_history=num_history_frames,
@@ -68,11 +74,13 @@ class Denoiser(nn.Module):
         self.decay = decay
         self.endpoint_replay_probability = endpoint_replay_probability
         self.grid_replay_probability = grid_replay_probability
+        self.grid_max_nfe = grid_max_nfe
         self.positive_particles = positive_particles
         self.transport_parameterization = transport_parameterization
         self.composed_source_replay_probability = (
             composed_source_replay_probability
         )
+        self.composed_source_steps = composed_source_steps
         self.time_sampling = time_sampling
         self.time_mu = time_mu
         self.time_sigma = time_sigma
@@ -114,8 +122,15 @@ class Denoiser(nn.Module):
             & (category < self.endpoint_replay_probability + self.grid_replay_probability)
         )
 
-        grid_sources = source.new_tensor((0.0, 0.5, 0.0, 0.25, 0.5, 0.75))
-        grid_deltas = source.new_tensor((0.5, 0.5, 0.25, 0.25, 0.25, 0.25))
+        grid_sources = []
+        grid_deltas = []
+        grid_nfe = 2
+        while grid_nfe <= self.grid_max_nfe:
+            grid_sources.extend(index / grid_nfe for index in range(grid_nfe))
+            grid_deltas.extend([1.0 / grid_nfe] * grid_nfe)
+            grid_nfe *= 2
+        grid_sources = source.new_tensor(grid_sources)
+        grid_deltas = source.new_tensor(grid_deltas)
         grid_indices = torch.randint(grid_sources.numel(), (batch_size,), device=device)
         source = torch.where(grid_replay, grid_sources[grid_indices], source)
         target = torch.where(
@@ -228,7 +243,11 @@ class Denoiser(nn.Module):
                 ) & (source_time > 1e-4)
             if source_replay.any():
                 replay_source = self._compose_source_with_ema(
-                    noise, source_time, history, actions
+                    noise,
+                    source_time,
+                    history,
+                    actions,
+                    num_steps=self.composed_source_steps,
                 )
                 replay_mask = source_replay.repeat_interleave(self.n_neg).view(
                     -1, 1, 1, 1, 1
@@ -282,9 +301,11 @@ class Denoiser(nn.Module):
             averages['time/delta_mean'] = delta.mean().item()
             averages['time/endpoint_fraction'] = replay.float().mean().item()
             averages['time/grid_fraction'] = grid_replay.float().mean().item()
+            averages['time/grid_max_nfe'] = self.grid_max_nfe
             averages['time/composed_source_fraction'] = (
                 source_replay.float().mean().item()
             )
+            averages['time/composed_source_steps'] = self.composed_source_steps
             averages['time/positive_particles'] = self.positive_particles
         return loss, averages
 

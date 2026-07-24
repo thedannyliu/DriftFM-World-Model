@@ -8,9 +8,11 @@ model:
   drift_flow:
     endpoint_replay_probability: 0.25
     grid_replay_probability: 0.0
+    grid_max_nfe: 4
     positive_particles: 1
     transport_parameterization: residual
     composed_source_replay_probability: 0.0
+    composed_source_steps: 2
     time_sampling: logit_normal
     time_mu: -0.4
     time_sigma: 1.0

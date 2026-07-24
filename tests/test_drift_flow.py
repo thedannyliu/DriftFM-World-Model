@@ -149,6 +149,26 @@ def test_grid_replay_samples_only_inference_intervals():
     torch.testing.assert_close(target, source + delta)
 
 
+def test_grid_replay_can_cover_nfe_eight_intervals():
+    torch.manual_seed(40)
+    model = make_denoiser(
+        "drift_flow",
+        endpoint_replay_probability=0.0,
+        grid_replay_probability=1.0,
+        grid_max_nfe=8,
+    )
+    source, _, delta, _, _ = model._sample_time_pairs(
+        4096, torch.device("cpu")
+    )
+    observed = set(zip(source.tolist(), delta.tolist()))
+    expected = {
+        (index / nfe, 1.0 / nfe)
+        for nfe in (2, 4, 8)
+        for index in range(nfe)
+    }
+    assert observed == expected
+
+
 def test_intermediate_uses_all_positive_particles_but_endpoint_uses_one():
     batch = {
         "image": torch.randn(2, 4, 3, 4, 4),
@@ -220,3 +240,30 @@ def test_composed_source_replay_uses_ema_and_keeps_training_gradient_finite():
     assert torch.isfinite(loss)
     assert model.inner_model.time_embed.weight.grad is not None
     assert torch.isfinite(model.inner_model.time_embed.weight.grad).all()
+
+
+def test_composed_source_replay_respects_configured_step_count():
+    torch.manual_seed(50)
+    model = make_denoiser(
+        "drift_flow",
+        endpoint_replay_probability=0.0,
+        composed_source_replay_probability=1.0,
+        composed_source_steps=4,
+    )
+    batch = {
+        "image": torch.randn(2, 4, 3, 4, 4),
+        "action": torch.randn(2, 4, 2),
+    }
+    calls = []
+    original = model.ema_model.forward
+
+    def record_ema_call(*args, **kwargs):
+        calls.append(kwargs["time_pair"].detach().clone())
+        return original(*args, **kwargs)
+
+    model.ema_model.forward = record_ema_call
+    loss, metrics = model(batch, torch.device("cpu"))
+
+    assert torch.isfinite(loss)
+    assert len(calls) == 4
+    assert metrics["time/composed_source_steps"] == 4

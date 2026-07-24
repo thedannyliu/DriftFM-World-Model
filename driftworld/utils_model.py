@@ -17,6 +17,7 @@ def create_model(cfg, device):
         objective=objective,
         endpoint_replay_probability=drift_flow.get("endpoint_replay_probability", 0.25),
         grid_replay_probability=drift_flow.get("grid_replay_probability", 0.0),
+        grid_max_nfe=drift_flow.get("grid_max_nfe", 4),
         positive_particles=drift_flow.get("positive_particles", 1),
         transport_parameterization=drift_flow.get(
             "transport_parameterization", "residual"
@@ -24,6 +25,7 @@ def create_model(cfg, device):
         composed_source_replay_probability=drift_flow.get(
             "composed_source_replay_probability", 0.0
         ),
+        composed_source_steps=drift_flow.get("composed_source_steps", 2),
         time_sampling=drift_flow.get("time_sampling", "logit_normal"),
         time_mu=drift_flow.get("time_mu", -0.4),
         time_sigma=drift_flow.get("time_sigma", 1.0),
