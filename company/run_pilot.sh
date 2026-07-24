@@ -20,6 +20,7 @@ EXPERIMENT_TAG=${EXPERIMENT_TAG:-}
 VALIDATION_EVERY=${VALIDATION_EVERY:-500}
 VALIDATION_BATCHES=${VALIDATION_BATCHES:-16}
 PILOT_PRINT_EVERY=${PILOT_PRINT_EVERY:-20}
+PILOT_LR=${PILOT_LR:-}
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 
 if (( PILOT_PRINT_EVERY < 1 )); then
@@ -62,6 +63,10 @@ if [[ -n ${WANDB_ENTITY:-} ]]; then
 fi
 
 MODEL_ARGS=()
+OPT_ARGS=()
+if [[ -n ${PILOT_LR} ]]; then
+    OPT_ARGS+=(opt.lr="${PILOT_LR}")
+fi
 if [[ ${ROLE} == driftflow ]]; then
     MODEL_ARGS+=(
         model.drift_flow.time_sampling="${DRIFTFLOW_TIME_SAMPLING:-logit_normal}"
@@ -69,6 +74,7 @@ if [[ ${ROLE} == driftflow ]]; then
         model.drift_flow.grid_replay_probability="${DRIFTFLOW_GRID_REPLAY:-0.0}"
         model.drift_flow.positive_particles="${DRIFTFLOW_POSITIVE_PARTICLES:-1}"
         model.drift_flow.transport_parameterization="${DRIFTFLOW_TRANSPORT_PARAMETERIZATION:-residual}"
+        model.drift_flow.composed_source_replay_probability="${DRIFTFLOW_COMPOSED_SOURCE_REPLAY:-0.0}"
     )
 fi
 
@@ -77,9 +83,10 @@ echo "[pilot] dependency preflight"
 "${PYTHON_BIN}" -c \
     'import hydra, omegaconf, torch, wandb, zarr; import train, utils_model; print("[pilot] dependency_preflight=pass")'
 echo "[pilot] role=${ROLE} tag=${EXPERIMENT_TAG:-main} gpus=${GPUS_PER_NODE} batch_per_gpu=${BATCH_PER_GPU} max_steps=${MAX_STEPS} seed=${SEED}"
+echo "[pilot] learning_rate=${PILOT_LR:-config-default}"
 echo "[pilot] validation=episodes490:500 every=${VALIDATION_EVERY} batches=${VALIDATION_BATCHES} checkpoints=latest,best"
 if [[ ${ROLE} == driftflow ]]; then
-    echo "[pilot] driftflow_time_sampling=${DRIFTFLOW_TIME_SAMPLING:-logit_normal} endpoint_replay=${DRIFTFLOW_ENDPOINT_REPLAY:-0.25} grid_replay=${DRIFTFLOW_GRID_REPLAY:-0.0} positive_particles=${DRIFTFLOW_POSITIVE_PARTICLES:-1} transport_parameterization=${DRIFTFLOW_TRANSPORT_PARAMETERIZATION:-residual}"
+    echo "[pilot] driftflow_time_sampling=${DRIFTFLOW_TIME_SAMPLING:-logit_normal} endpoint_replay=${DRIFTFLOW_ENDPOINT_REPLAY:-0.25} grid_replay=${DRIFTFLOW_GRID_REPLAY:-0.0} positive_particles=${DRIFTFLOW_POSITIVE_PARTICLES:-1} transport_parameterization=${DRIFTFLOW_TRANSPORT_PARAMETERIZATION:-residual} composed_source_replay=${DRIFTFLOW_COMPOSED_SOURCE_REPLAY:-0.0}"
 fi
 echo "[pilot] output=${OUTPUT_DIR} full_log=${FULL_LOG} wandb_project=${WANDB_PROJECT} wandb_run=${RUN_NAME}"
 if [[ -f ${OUTPUT_DIR}/ckpt-latest.pth ]]; then
@@ -98,7 +105,7 @@ set +e
     data.dataset_path_dir="${DATA_DIR}" data.batch_size="${BATCH_PER_GPU}" \
     dataloader.num_workers="${WORKERS_PER_GPU}" \
     output_dir="${OUTPUT_DIR}" hydra.run.dir="${LOG_DIR}/hydra" \
-    "${WANDB_ARGS[@]}" "${MODEL_ARGS[@]}" 2>&1 | tee "${FULL_LOG}" | awk -v print_every="${PILOT_PRINT_EVERY}" '
+    "${WANDB_ARGS[@]}" "${MODEL_ARGS[@]}" "${OPT_ARGS[@]}" 2>&1 | tee "${FULL_LOG}" | awk -v print_every="${PILOT_PRINT_EVERY}" '
         /Started new wandb|Resuming wandb|Saving latest ckpt|Saving final checkpoint|Saved best ckpt|validation\/loss:/ {
             print; fflush(); next
         }

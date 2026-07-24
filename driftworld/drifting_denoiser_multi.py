@@ -36,6 +36,7 @@ class Denoiser(nn.Module):
                  grid_replay_probability: float = 0.0,
                  positive_particles: int = 1,
                  transport_parameterization: str = "residual",
+                 composed_source_replay_probability: float = 0.0,
                  time_sampling: str = "logit_normal",
                  time_mu: float = -0.4,
                  time_sigma: float = 1.0,
@@ -51,6 +52,10 @@ class Denoiser(nn.Module):
             raise ValueError(
                 f"Unknown transport parameterization: {transport_parameterization}"
             )
+        if not 0.0 <= composed_source_replay_probability <= 1.0:
+            raise ValueError(
+                "composed_source_replay_probability must be between zero and one"
+            )
         self.objective = objective
         self.inner_model = UNet_model_dict[unet_name](
             num_history=num_history_frames,
@@ -65,6 +70,9 @@ class Denoiser(nn.Module):
         self.grid_replay_probability = grid_replay_probability
         self.positive_particles = positive_particles
         self.transport_parameterization = transport_parameterization
+        self.composed_source_replay_probability = (
+            composed_source_replay_probability
+        )
         self.time_sampling = time_sampling
         self.time_mu = time_mu
         self.time_sigma = time_sigma
@@ -148,6 +156,27 @@ class Denoiser(nn.Module):
             return delta / (1.0 - source_time).clamp_min(1e-4)
         return delta
 
+    @torch.no_grad()
+    def _compose_source_with_ema(
+        self, noise, source_time, history, actions, num_steps=2
+    ):
+        state = noise
+        source_rep = source_time.repeat_interleave(self.n_neg).view(
+            -1, 1, 1, 1, 1
+        )
+        delta = source_rep / num_steps
+        for step in range(num_steps):
+            step_source = delta * step
+            time_pair = torch.stack(
+                (step_source.flatten(), delta.flatten()), dim=1
+            )
+            endpoint = self.ema_model(
+                state, history, actions, time_pair=time_pair
+            )
+            scale = self._transport_scale(step_source, delta)
+            state = state + scale * (endpoint - state)
+        return state
+
     def forward(self, batch: Batch, device):
         """
         Forward pass to train DriftWorld
@@ -188,6 +217,23 @@ class Denoiser(nn.Module):
             source_rep = source_time.repeat_interleave(self.n_neg).view(-1, 1, 1, 1, 1)
             delta_rep = delta.repeat_interleave(self.n_neg).view(-1, 1, 1, 1, 1)
             source_x = (1.0 - source_rep) * noise + source_rep * target_rep
+            if self.composed_source_replay_probability == 0.0:
+                source_replay = torch.zeros(
+                    b, dtype=torch.bool, device=device
+                )
+            else:
+                source_replay = (
+                    torch.rand(b, device=device)
+                    < self.composed_source_replay_probability
+                ) & (source_time > 1e-4)
+            if source_replay.any():
+                replay_source = self._compose_source_with_ema(
+                    noise, source_time, history, actions
+                )
+                replay_mask = source_replay.repeat_interleave(self.n_neg).view(
+                    -1, 1, 1, 1, 1
+                )
+                source_x = torch.where(replay_mask, replay_source, source_x)
             time_pair = torch.stack((source_time, delta), dim=1).repeat_interleave(
                 self.n_neg, dim=0
             )
@@ -236,6 +282,9 @@ class Denoiser(nn.Module):
             averages['time/delta_mean'] = delta.mean().item()
             averages['time/endpoint_fraction'] = replay.float().mean().item()
             averages['time/grid_fraction'] = grid_replay.float().mean().item()
+            averages['time/composed_source_fraction'] = (
+                source_replay.float().mean().item()
+            )
             averages['time/positive_particles'] = self.positive_particles
         return loss, averages
 

@@ -21,6 +21,9 @@ def create_model(cfg, device):
         transport_parameterization=drift_flow.get(
             "transport_parameterization", "residual"
         ),
+        composed_source_replay_probability=drift_flow.get(
+            "composed_source_replay_probability", 0.0
+        ),
         time_sampling=drift_flow.get("time_sampling", "logit_normal"),
         time_mu=drift_flow.get("time_mu", -0.4),
         time_sigma=drift_flow.get("time_sigma", 1.0),

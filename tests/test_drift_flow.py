@@ -87,6 +87,26 @@ def test_variable_nfe_shapes_and_determinism():
     torch.testing.assert_close(first, second)
 
 
+def test_endpoint_normalization_makes_oracle_endpoint_nfe_invariant():
+    model = make_denoiser(
+        "drift_flow", transport_parameterization="endpoint_normalized"
+    )
+    history = torch.randn(2, 3, 2, 4, 4)
+    actions = torch.randn(2, 2, 2)
+    noise = torch.randn(2, 3, 2, 4, 4)
+
+    def zero_endpoint(x, history, actions, time_pair=None):
+        return torch.zeros_like(x)
+
+    model.ema_model.forward = zero_endpoint
+    one_step = model.sample(history, actions, nfe=1, noise=noise)
+    two_step = model.sample(history, actions, nfe=2, noise=noise)
+    four_step = model.sample(history, actions, nfe=4, noise=noise)
+
+    torch.testing.assert_close(one_step, two_step, rtol=0, atol=0)
+    torch.testing.assert_close(one_step, four_step, rtol=0, atol=0)
+
+
 def test_arbitrary_time_training_has_finite_gradient():
     torch.manual_seed(3)
     model = make_denoiser("drift_flow")
@@ -171,3 +191,32 @@ def test_mixed_batch_keeps_endpoint_and_intermediate_positive_counts_separate():
     loss.backward()
     assert observed == [(1, 1), (1, 4)]
     assert gen.grad is not None
+
+
+def test_composed_source_replay_uses_ema_and_keeps_training_gradient_finite():
+    torch.manual_seed(5)
+    model = make_denoiser(
+        "drift_flow",
+        endpoint_replay_probability=0.0,
+        composed_source_replay_probability=1.0,
+    )
+    batch = {
+        "image": torch.randn(2, 4, 3, 4, 4),
+        "action": torch.randn(2, 4, 2),
+    }
+    calls = []
+    original = model.ema_model.forward
+
+    def record_ema_call(*args, **kwargs):
+        calls.append(kwargs["time_pair"].detach().clone())
+        return original(*args, **kwargs)
+
+    model.ema_model.forward = record_ema_call
+    loss, metrics = model(batch, torch.device("cpu"))
+    loss.backward()
+
+    assert len(calls) == 2
+    assert metrics["time/composed_source_fraction"] == 1.0
+    assert torch.isfinite(loss)
+    assert model.inner_model.time_embed.weight.grad is not None
+    assert torch.isfinite(model.inner_model.time_embed.weight.grad).all()
