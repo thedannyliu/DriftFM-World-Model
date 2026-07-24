@@ -21,6 +21,7 @@ ASSET_ROOT=${DRIFTFLOWWORLD_ASSET_ROOT:-/group-volume/danny-dataset/driftworld}
 RUNTIME_ROOT=${DRIFTFLOWWORLD_RUNTIME_ROOT:-/user-volume/driftworld}
 PYTHON_BIN=${PYTHON_BIN:-python3}
 NUM_VIDEOS=${EVAL_NUM_VIDEOS:-25}
+read -r -a NFES <<< "${EVAL_NFES:-1 2 4}"
 SEED=${SEED:-1}
 TRANSPORT_PARAMETERIZATION=${DRIFTFLOW_TRANSPORT_PARAMETERIZATION:-residual}
 RESULT_LABEL=${EVAL_RESULT_LABEL:-}
@@ -34,6 +35,16 @@ if [[ -n ${RESULT_LABEL} && ! ${RESULT_LABEL} =~ ^[A-Za-z0-9._-]+$ ]]; then
     echo "EVAL_RESULT_LABEL contains unsupported characters" >&2
     exit 2
 fi
+if (( ${#NFES[@]} < 1 || ${#NFES[@]} > 4 )); then
+    echo "EVAL_NFES must contain between one and four values" >&2
+    exit 2
+fi
+for NFE in "${NFES[@]}"; do
+    if [[ ! ${NFE} =~ ^[1-9][0-9]*$ ]]; then
+        echo "EVAL_NFES values must be positive integers" >&2
+        exit 2
+    fi
+done
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 DATA_DIR=${ASSET_ROOT}/data/world_model_data/dataset_domain/all_data
 OUTPUT_DIR=${ASSET_ROOT}/checkpoints/experiments/${EXPERIMENT_TAG}_seed${SEED}
@@ -59,13 +70,13 @@ export HF_HOME=${ASSET_ROOT}/cache/huggingface
 export TORCH_HOME=${ASSET_ROOT}/cache/torch
 
 cd "${REPO_ROOT}/driftworld"
-echo "[variant-eval] tag=${EXPERIMENT_TAG} checkpoint=${CHECKPOINT_KIND} videos=${NUM_VIDEOS} transport_parameterization=${TRANSPORT_PARAMETERIZATION}"
-echo "[variant-eval] gpu0=nfe1 gpu1=nfe2 gpu2=nfe4 logs=${LOG_DIR}"
+echo "[variant-eval] tag=${EXPERIMENT_TAG} checkpoint=${CHECKPOINT_KIND} videos=${NUM_VIDEOS} nfes=${NFES[*]} transport_parameterization=${TRANSPORT_PARAMETERIZATION}"
+echo "[variant-eval] one_nfe_per_gpu logs=${LOG_DIR}"
 
 PIDS=()
 NAMES=()
-for INDEX in 0 1 2; do
-    NFE=$(( 2 ** INDEX ))
+for INDEX in "${!NFES[@]}"; do
+    NFE=${NFES[${INDEX}]}
     CUDA_VISIBLE_DEVICES=${INDEX} "${PYTHON_BIN}" main_eval_metrics.py \
         --config-name=pushT_driftflow \
         data.dataset_path_dir="${DATA_DIR}" output_dir="${OUTPUT_DIR}" \
@@ -94,7 +105,11 @@ if (( FAILED )); then
     exit 1
 fi
 
-SUMMARY_ARGS=(--variant-dir "${METRICS_DIR}" --output "${MARKER}")
+SUMMARY_ARGS=(
+    --variant-dir "${METRICS_DIR}"
+    --nfes "${NFES[@]}"
+    --output "${MARKER}"
+)
 if [[ ${WANDB_LOG_EVAL} == 1 ]]; then
     SUMMARY_ARGS+=(
         --wandb-project "${WANDB_PROJECT}"

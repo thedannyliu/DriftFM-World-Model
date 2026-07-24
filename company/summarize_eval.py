@@ -25,6 +25,7 @@ def main():
     parser.add_argument("--control-dir", type=Path)
     parser.add_argument("--driftflow-dir", type=Path)
     parser.add_argument("--variant-dir", type=Path)
+    parser.add_argument("--nfes", nargs="+", type=int, default=(1, 2, 4))
     parser.add_argument("--wandb-project")
     parser.add_argument("--wandb-entity")
     parser.add_argument("--wandb-name")
@@ -40,7 +41,7 @@ def main():
     elif args.variant_dir:
         result = {"status": "complete"}
         for length in ("64", "full"):
-            for nfe in (1, 2, 4):
+            for nfe in args.nfes:
                 result[f"variant_{length}_nfe{nfe}"] = read_metrics(
                     args.variant_dir / f"rollout_len-{length}_nfe-{nfe}.json"
                 )
