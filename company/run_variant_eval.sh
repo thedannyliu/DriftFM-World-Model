@@ -23,10 +23,15 @@ PYTHON_BIN=${PYTHON_BIN:-python3}
 NUM_VIDEOS=${EVAL_NUM_VIDEOS:-25}
 SEED=${SEED:-1}
 TRANSPORT_PARAMETERIZATION=${DRIFTFLOW_TRANSPORT_PARAMETERIZATION:-residual}
+RESULT_LABEL=${EVAL_RESULT_LABEL:-}
 WANDB_LOG_EVAL=${WANDB_LOG_EVAL:-0}
 WANDB_PROJECT=${WANDB_PROJECT:-driftfm-world-model-company}
 if [[ ${TRANSPORT_PARAMETERIZATION} != residual && ${TRANSPORT_PARAMETERIZATION} != endpoint_normalized ]]; then
     echo "Unsupported DRIFTFLOW_TRANSPORT_PARAMETERIZATION: ${TRANSPORT_PARAMETERIZATION}" >&2
+    exit 2
+fi
+if [[ -n ${RESULT_LABEL} && ! ${RESULT_LABEL} =~ ^[A-Za-z0-9._-]+$ ]]; then
+    echo "EVAL_RESULT_LABEL contains unsupported characters" >&2
     exit 2
 fi
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
@@ -37,6 +42,9 @@ REWARD_DIR=${ASSET_ROOT}/checkpoints/official/pusht_checkpoints/reward
 EVAL_LABEL=${CHECKPOINT_KIND}
 if [[ ${TRANSPORT_PARAMETERIZATION} != residual ]]; then
     EVAL_LABEL=${CHECKPOINT_KIND}-${TRANSPORT_PARAMETERIZATION}
+fi
+if [[ -n ${RESULT_LABEL} ]]; then
+    EVAL_LABEL=${EVAL_LABEL}-${RESULT_LABEL}
 fi
 METRICS_DIR=${RUNTIME_ROOT}/results/${EXPERIMENT_TAG}-seed${SEED}-${EVAL_LABEL}
 LOG_DIR=${RUNTIME_ROOT}/logs/variant-eval/${EXPERIMENT_TAG}-${EVAL_LABEL}-${TIMESTAMP}
