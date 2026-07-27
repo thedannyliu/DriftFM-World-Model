@@ -295,6 +295,17 @@ Print a pasteable shared status report from any node:
 python3 company/status_weekend_research.py all
 ```
 
+To print one exhaustive terminal report covering the original overnight runs, all
+corrected long queues, every completed or unstarted weekend variant, W&B IDs,
+rollout metrics, missing milestones, and shared checkpoint inventory:
+
+```bash
+python3 company/status_all_experiments.py
+```
+
+The command is read-only. Redirect or `tee` its output when it needs to be pasted
+back for documentation.
+
 Post-training holds out episodes 490–499 from each 500-episode domain and evaluates 16
 fixed adaptation-validation batches every 500 updates. The released parent may have
 already seen these episodes, so this detects post-training overfit but is not an unseen
