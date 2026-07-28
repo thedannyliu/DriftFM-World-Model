@@ -9,6 +9,7 @@ import numpy as np
 
 
 TRANSITIONS = ((1, 2), (2, 4), (4, 8))
+EXPECTED_RUNS = 16
 
 
 def parse_result(value):
@@ -223,7 +224,7 @@ def main():
             passing_families.append(family)
     motion_decision = "pass" if len(passing_families) >= 2 else "fail"
 
-    coverage_complete = len(runs) >= 12
+    coverage_complete = len(runs) >= EXPECTED_RUNS
     if not coverage_complete:
         next_step = "collect_remaining_audits"
     elif (
@@ -240,6 +241,7 @@ def main():
     summary = {
         "status": "complete",
         "num_runs": len(runs),
+        "expected_runs": EXPECTED_RUNS,
         "coverage": "complete" if coverage_complete else "partial",
         "gates": {
             "composition": {

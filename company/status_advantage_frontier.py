@@ -71,6 +71,14 @@ def main():
         route_vertex = routing_metrics.get(
             "final_block_vertex_error", {}
         ).get("adaptive_vs_random_relative_change")
+        route_fraction = routing.get("nfe2_fraction")
+        route_split = routing.get("split", "legacy_first_half")
+        route_status = (
+            "degenerate"
+            if route_fraction is not None
+            and (route_fraction <= 0.05 or route_fraction >= 0.95)
+            else ("ready" if route_fraction is not None else "missing")
+        )
         print(
             f"DONE queue={role} name={name} family={family} "
             f"lpips_1/2/4/8={compact(lpips)} "
@@ -78,6 +86,8 @@ def main():
             f"vertex_1/2/4/8={compact(vertex)} "
             f"route_mse={route_mse if route_mse is not None else 'NA'} "
             f"route_vertex={route_vertex if route_vertex is not None else 'NA'} "
+            f"route_fraction={route_fraction if route_fraction is not None else 'NA'} "
+            f"route_split={route_split} route_status={route_status} "
             f"wandb={result.get('wandb_run_id', 'NA')}"
         )
         completed += 1

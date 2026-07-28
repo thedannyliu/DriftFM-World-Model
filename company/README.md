@@ -346,9 +346,7 @@ stage from an individual node's partial report.
 
 ### Two-node locked advantage frontier
 
-The 2026-07-28 partial audit contains node A/C only. With two available 4xH100 nodes,
-complete node B/D and then run the paired paper-sized risk frontier. The launcher
-requires code commit `bad6e1b` or later:
+The frontier launcher requires code commit `bad6e1b` or later:
 
 ```bash
 # First 4xH100 node: missing K=32/base audit, then eight locked1000 checkpoints.
@@ -367,13 +365,24 @@ checkpoint is created. A completed checkpoint is resumable through its
 project. The frontier uses only completed K=1, K=32, joint, and deep-training
 checkpoints; it never reads a `best` file that an active weekend queue may replace.
 
-The evaluation records aligned per-video normalized action path and ground-truth motion in
-addition to LPIPS, MSE, and final block-pose error. It reports whether an action-path
-threshold fixed on the first half improves the second-half NFE1/NFE2 allocation
-relative to random routing at the same mean NFE. Inspect both queues with:
+The evaluation records aligned per-video normalized action path and ground-truth
+motion in addition to LPIPS, MSE, and final block-pose error. The original ordered
+first-half/second-half routing split can collapse to a single NFE. Current summaries
+therefore fit the action-path threshold on even-index examples and evaluate
+odd-index examples, and explicitly print the selected NFE2 fraction. This
+post-diagnostic split is exploratory. Inspect both queues with:
 
 ```bash
 python3 company/status_advantage_frontier.py all
+```
+
+Existing completed evaluations do not need another GPU pass. Recompute their paired
+routing summaries from the retained raw metrics, append to the same W&B runs, and
+print the corrected status with:
+
+```bash
+bash company/refresh_advantage_frontier.sh node-a
+bash company/refresh_advantage_frontier.sh node-b
 ```
 
 Print the allocations without GPUs or credentials:
