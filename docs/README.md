@@ -6,12 +6,14 @@ order:
 1. [`research-protocol.md`](research-protocol.md) locks comparisons and decision gates.
 2. [`advantage-aligned-transport-hypotheses.md`](advantage-aligned-transport-hypotheses.md)
    defines the current post-PoC mechanism hypotheses and diagnostic gates.
-3. [`literature-review.md`](literature-review.md) records the novelty boundary.
-4. [`experiments.md`](experiments.md) records hypotheses, jobs, metrics, and decisions.
-5. [`results/`](results/) contains dated, immutable experiment snapshots and analysis.
-6. [`weekend-research-plan.md`](weekend-research-plan.md) defines the current
+3. [`unordered-generative-fidelity.md`](unordered-generative-fidelity.md) defines the
+   current decision-level hypothesis, prior-work boundary, and four-node experiment.
+4. [`literature-review.md`](literature-review.md) records the novelty boundary.
+5. [`experiments.md`](experiments.md) records hypotheses, jobs, metrics, and decisions.
+6. [`results/`](results/) contains dated, immutable experiment snapshots and analysis.
+7. [`weekend-research-plan.md`](weekend-research-plan.md) defines the earlier
    four-node aggressive follow-up.
-7. [`research-idea.md`](research-idea.md) contains the broader project proposal.
+8. [`research-idea.md`](research-idea.md) contains the broader project proposal.
 
 Each experiment table answers one question. Every run records the task, seed,
 manifest, GPU, code commit, parent/output checkpoint, W&B project and run ID, metrics,

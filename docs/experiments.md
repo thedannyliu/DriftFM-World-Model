@@ -93,3 +93,17 @@ Full preregistration and resource schedule:
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | P0 | planned | breadth-depth dev / 0:25 | `docs/manifests/planning.yaml` | up to 8x H100 | selected T1 / per-seed shards | eval-only | IoU, latency, peak memory, top-K recall | Select one K/M without test peeking. |
 | P1 | planned | locked ep100 + ep300 / 0:100 | `docs/manifests/planning.yaml` | up to 8x H100 | selected T1 / per-seed shards | eval-only | paired IoU delta + bootstrap CI | Primary claim. |
+
+## Q4 — Is learned inference depth an ordered decision fidelity?
+
+These rows replace the underspecified P0/P1 plan with a frozen-checkpoint protocol.
+NFE is a compute setting; Push-T IoU/success and paired action-selection outcomes are
+the primary evidence. See
+[`unordered-generative-fidelity.md`](unordered-generative-fidelity.md).
+
+| ID | Status | Question | Manifest / queue | GPU and data | Frozen inputs | W&B | Metrics | Decision gate |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| U1 | planned | With 32 policy candidates fixed, does increasing NFE 1/2/4/8 improve decisions monotonically? | `docs/manifests/unordered-fidelity.yaml`; `node-a` | 4xH100; 20 fixed ep100 test seeds/row | k1-grid25 best s2, k32 latest s2, joint latest s2, deep-base rollout-best s1 | `driftfm-unordered-fidelity-company` | paired IoU, success, latency, first-decision score margin | H1 passes only if non-monotonic task/ranking behavior repeats across at least two families. |
+| U2 | planned | At 64 nominal model evaluations, should compute buy breadth or depth? | same; `node-b` | 4xH100; same seeds | same four checkpoints and ep100 policy | same | 64×1, 32×2, 16×4, 8×8 paired IoU and latency | Report the best static frontier; do not assume nominal evaluations imply equal wall time. |
+| U3 | planned | At nominal budget 32, can cheap-to-expensive racing beat the best static allocation? | same; `node-c` | 4xH100; same seeds | same four checkpoints and ep100 policy | same | fixed 16×2; top-half×2, top-quarter×4, top-eighth×8; winner flips | A paper-level allocator is unsupported unless paired CI beats the best static arm. |
+| U4 | planned | Does the conclusion survive a shift from ep100 to ep300 proposal policy? | same; `node-d` | 4xH100; 20 fixed ep300 test seeds/row | same four world models; ep300 policy | same | representative breadth/depth/racing IoU, success, latency | If ep100 gains fail here, study policy-distribution shift before adding tasks or training. |

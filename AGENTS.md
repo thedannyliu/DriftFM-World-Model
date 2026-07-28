@@ -108,6 +108,8 @@ Research documentation lives under `docs/`:
 - `docs/research-protocol.md`: locked claims, gates, and evaluation protocol.
 - `docs/advantage-aligned-transport-hypotheses.md`: current post-PoC mechanism
   hypotheses, falsifiers, diagnostic gates, and company commands.
+- `docs/unordered-generative-fidelity.md`: active decision-level hypothesis, closest
+  prior work, falsifiers, and four-node fixed-budget planning protocol.
 - `docs/literature-review.md`: concise related-work and novelty audit.
 - `docs/experiments.md`: append-only hypothesis/experiment/result tables.
 - `docs/results/`: dated metric snapshots and research decisions; interim reports
@@ -144,9 +146,10 @@ put them in the core `driftworld/` implementation or its default configs.
   dependency installation should respect any company package mirror configuration.
 - Company container dependencies are maintained directly in
   `company/requirements.txt`, separate from the PACE environment.
-- Current company pilot capacity is two independent nodes with four H100 GPUs each.
-  Use single-node four-process DDP per arm and keep global batch size matched across
-  control and Drift Flow runs.
+- Current company evaluation capacity is four independent nodes with four H100 GPUs
+  each and shared `/group-volume` and `/user-volume` folders. Training uses
+  single-node four-process DDP; evaluation queues shard fixed test seeds over the four
+  local GPUs and use shared atomic completion markers.
 - The 2026-07-28 two-node diagnostic follow-up is launched with
   `company/run_advantage_followup.sh`. It completes missing hypothesis audits before
   the frozen-checkpoint locked1000 frontier. It creates no new model checkpoints;

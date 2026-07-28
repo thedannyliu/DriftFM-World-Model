@@ -1,0 +1,56 @@
+name: unordered-generative-fidelity-pusht-v1
+date: 2026-07-28
+status: planned
+task: PushT
+hardware:
+  nodes: 4
+  gpus_per_node: 4
+  gpu: H100
+execution:
+  company_plan: company/unordered_fidelity_plan.tsv
+  trials_per_row: 20
+  shard_count: 4
+  shared_completion_marker: gpc-unordered-{row_name}.json
+  wandb_project: driftfm-unordered-fidelity-company
+  checkpoint_retention: frozen-no-new-checkpoints
+policies:
+  discovery: ep100
+  replication: ep300
+world_models:
+  - tag: driftflow-endpointnorm-k1-grid25
+    seed: 2
+    checkpoint: best
+  - tag: driftflow-endpointnorm-k32
+    seed: 2
+    checkpoint: latest
+  - tag: driftflow-endpointnorm-k16-grid25-sr25
+    seed: 2
+    checkpoint: latest
+  - tag: wknd-d-base-k16
+    seed: 1
+    checkpoint: best
+comparisons:
+  fixed_candidates:
+    proposals: 32
+    nfes: [1, 2, 4, 8]
+  fixed_nominal_budget:
+    model_evaluations: 64
+    proposal_nfe_pairs: [[64, 1], [32, 2], [16, 4], [8, 8]]
+  racing:
+    model_evaluations: 32
+    proposals: 16
+    refine_settings:
+      - [2, 0.5]
+      - [4, 0.25]
+      - [8, 0.125]
+metrics:
+  primary: episode_max_iou
+  secondary:
+    - success_fraction_at_0.95
+    - planning_latency
+    - first_decision_top2_margin
+    - coarse_to_final_winner_flip
+statistics:
+  unit: environment_test_seed
+  interval: paired_bootstrap_95
+  discovery_warning: PushT-only; cross-task confirmation required
