@@ -42,11 +42,16 @@ ASSET_ROOT=${DRIFTFLOWWORLD_ASSET_ROOT:-/group-volume/danny-dataset/driftworld}
 RUNTIME_ROOT=${DRIFTFLOWWORLD_RUNTIME_ROOT:-/user-volume/driftworld}
 PYTHON_BIN=${PYTHON_BIN:-python3}
 NUM_TRIALS=${GPC_NUM_TRIALS:-20}
+POLICY_SEED=${GPC_POLICY_SEED:-5}
 WANDB_PROJECT=${WANDB_PROJECT:-driftfm-unordered-fidelity-company}
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 
 if (( NUM_TRIALS < 4 || NUM_TRIALS % 4 != 0 )); then
     echo "GPC_NUM_TRIALS must be a positive multiple of four" >&2
+    exit 2
+fi
+if [[ ! ${POLICY_SEED} =~ ^[0-9]+$ ]]; then
+    echo "GPC_POLICY_SEED must be a non-negative integer" >&2
     exit 2
 fi
 
@@ -63,7 +68,11 @@ if [[ -s ${MARKER} ]]; then
     echo "[gpc-budget] skip name=${NAME} completed_marker=${MARKER}"
     exit 0
 fi
-for path in "${WORLD_CHECKPOINT}" "${POLICY_CHECKPOINT}" \
+if [[ ! -f ${POLICY_CHECKPOINT} || ! -s ${POLICY_CHECKPOINT} ]]; then
+    echo "Monolithic policy checkpoint not found: ${POLICY_CHECKPOINT}" >&2
+    exit 1
+fi
+for path in "${WORLD_CHECKPOINT}" \
     "${REWARD_DIR}/reward_predictor_xy.pth" \
     "${REWARD_DIR}/reward_predictor_angle.pth"; do
     if [[ ! -s ${path} ]]; then
@@ -98,7 +107,8 @@ fi
 
 echo "[gpc-budget] name=${NAME} family=${FAMILY} policy=${POLICY} strategy=${STRATEGY}"
 echo "[gpc-budget] proposals=${PROPOSALS} parallel=${NUM_PARALLEL} nfe=${NFE} refine_nfe=${REFINE_NFE} refine_ratio=${REFINE_RATIO} trials=${NUM_TRIALS}"
-echo "[gpc-budget] checkpoint=${WORLD_CHECKPOINT} candidate_ground_truth=${AUDIT_CANDIDATES} logs=${LOG_DIR}"
+echo "[gpc-budget] checkpoint=${WORLD_CHECKPOINT} policy_checkpoint=${POLICY_CHECKPOINT} policy_loader=monolithic policy_seed=${POLICY_SEED}"
+echo "[gpc-budget] candidate_ground_truth=${AUDIT_CANDIDATES} logs=${LOG_DIR}"
 
 PIDS=()
 NAMES=()
@@ -115,9 +125,11 @@ for GPU in 0 1 2 3; do
     CUDA_VISIBLE_DEVICES=${GPU} "${PYTHON_BIN}" main_gpc_rank.py \
         --config-name="gpc_rank_driftflow_for_${POLICY}" \
         ckpt.policy_checkpoint="${POLICY_CHECKPOINT}" \
+        ckpt.use_official=false \
         ckpt.world_model_checkpoint="${WORLD_CHECKPOINT}" \
         ckpt.reward_predictor_xy_checkpoint="${REWARD_DIR}/reward_predictor_xy.pth" \
         ckpt.reward_predictor_angle_checkpoint="${REWARD_DIR}/reward_predictor_angle.pth" \
+        train.seed="${POLICY_SEED}" \
         output_dir="${OUTPUT_DIR}" \
         planning.strategy="${STRATEGY}" \
         planning.num_proposals="${PROPOSALS}" \
