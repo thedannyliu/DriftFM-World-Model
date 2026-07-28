@@ -306,6 +306,44 @@ python3 company/status_all_experiments.py
 The command is read-only. Redirect or `tee` its output when it needs to be pasted
 back for documentation.
 
+### Advantage-aligned transport diagnosis
+
+The original monotonic-NFE proof of concept is rejected. Before adding another
+training loss, use the completed checkpoints to test whether route defect,
+model-generated source shift, and motion difficulty explain the NFE2->4/8
+regression. Run one command on each independent 4xH100 node:
+
+```bash
+AUDIT_NUM_BATCHES=64 AUDIT_PARTICLES=4 \
+bash company/run_hypothesis_audit.sh node-a
+
+AUDIT_NUM_BATCHES=64 AUDIT_PARTICLES=4 \
+bash company/run_hypothesis_audit.sh node-b
+
+AUDIT_NUM_BATCHES=64 AUDIT_PARTICLES=4 \
+bash company/run_hypothesis_audit.sh node-c
+
+AUDIT_NUM_BATCHES=64 AUDIT_PARTICLES=4 \
+bash company/run_hypothesis_audit.sh node-d
+```
+
+Each node assigns one existing checkpoint to each GPU, forces the corrected
+endpoint-normalized transport, logs four online W&B `hypothesis-audit` runs, and
+prints per-checkpoint NFE1/2/4/8 pixel/pose risk, adjacent route-defect correlations,
+and clean-versus-model-source penalties. It does not modify checkpoints.
+
+After all four nodes finish, print the combined 16-checkpoint gate from any node:
+
+```bash
+python3 company/status_hypothesis_audit.py
+```
+
+Use `bash company/run_hypothesis_audit.sh node-a --print-plan` to inspect a node
+without credentials or GPUs. The hypotheses, falsifiers, preregistered gates, and
+checkpoint allocation are in
+`docs/advantage-aligned-transport-hypotheses.md`. Do not start the proposed training
+stage from an individual node's partial report.
+
 Post-training holds out episodes 490–499 from each 500-episode domain and evaluates 16
 fixed adaptation-validation batches every 500 updates. The released parent may have
 already seen these episodes, so this detects post-training overfit but is not an unseen

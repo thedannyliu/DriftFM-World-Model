@@ -106,6 +106,8 @@ Focus on TOP AI venue's best papers' criteria, do mearningful work. Have researc
 Research documentation lives under `docs/`:
 
 - `docs/research-protocol.md`: locked claims, gates, and evaluation protocol.
+- `docs/advantage-aligned-transport-hypotheses.md`: current post-PoC mechanism
+  hypotheses, falsifiers, diagnostic gates, and company commands.
 - `docs/literature-review.md`: concise related-work and novelty audit.
 - `docs/experiments.md`: append-only hypothesis/experiment/result tables.
 - `docs/results/`: dated metric snapshots and research decisions; interim reports
