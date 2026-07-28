@@ -222,3 +222,30 @@ python3 company/status_hypothesis_audit.py
 
 An individual four-checkpoint node summary is labeled partial coverage. Only the
 combined report is allowed to select the next research stage.
+
+## 2026-07-28 partial observation and Stage 2
+
+Node A and node C have completed 8/16 audits. Mean MSE improves by
+`17.80%/21.28%/22.14%` at NFE2/4/8 versus NFE1, while final block-vertex error
+improves by `6.76%/7.44%/7.03%`. This coexists with the earlier locked100 LPIPS
+rebound. Composition correlations are negative and fail the preregistered gate;
+NFE8 model-source penalties are large but do not imply MSE degradation. The dynamics
+gate passes provisionally. Full values and limitations are recorded in
+[`results/2026-07-28-hypothesis-audit-partial.md`](results/2026-07-28-hypothesis-audit-partial.md).
+
+The immediate follow-up is not H4 training. First collect node B and node D. Then run
+a 1000-video paired advantage frontier on frozen checkpoints, measuring LPIPS, MSE,
+block-pose risk, and pre-inference action-path difficulty at NFE1/2/4/8. The
+deployable diagnostic routes high-action-path examples to NFE2 using a threshold
+fixed on the first half and reports performance on the second half against random
+allocation at the same mean NFE.
+
+This test distinguishes three perspectives:
+
+1. generic composition failure;
+2. a distortion/perception tradeoff with action-relevant depth benefit; and
+3. a non-action-relevant MSE artifact.
+
+Only the second outcome motivates risk-conditional inference depth. It would still
+require task-level planning evidence and a stronger method before meeting the
+top-venue bar.

@@ -344,6 +344,44 @@ checkpoint allocation are in
 `docs/advantage-aligned-transport-hypotheses.md`. Do not start the proposed training
 stage from an individual node's partial report.
 
+### Two-node locked advantage frontier
+
+The 2026-07-28 partial audit contains node A/C only. With two available 4xH100 nodes,
+complete node B/D and then run the paired paper-sized risk frontier. The launcher
+requires code commit `bad6e1b` or later:
+
+```bash
+# First 4xH100 node: missing K=32/base audit, then eight locked1000 checkpoints.
+bash company/run_advantage_followup.sh node-a
+
+# Second 4xH100 node: missing deep-training audit, then eight locked1000 checkpoints.
+bash company/run_advantage_followup.sh node-b
+```
+
+Each queue first skips or completes its missing four-checkpoint hypothesis audit.
+It then evaluates eight frozen checkpoints sequentially; within each checkpoint,
+NFE1/2/4/8 occupy GPUs 0/1/2/3 concurrently. The first-25-video benchmark projects
+more than 12 hours per queue, although exact duration depends on shared I/O. No model
+checkpoint is created. A completed checkpoint is resumable through its
+`advantage-locked1000` marker, and every evaluation logs online to the existing W&B
+project.
+
+The evaluation records aligned per-video normalized action path and ground-truth motion in
+addition to LPIPS, MSE, and final block-pose error. It reports whether an action-path
+threshold fixed on the first half improves the second-half NFE1/NFE2 allocation
+relative to random routing at the same mean NFE. Inspect both queues with:
+
+```bash
+python3 company/status_advantage_frontier.py all
+```
+
+Print the allocations without GPUs or credentials:
+
+```bash
+bash company/run_advantage_followup.sh node-a --print-plan
+bash company/run_advantage_followup.sh node-b --print-plan
+```
+
 Post-training holds out episodes 490–499 from each 500-episode domain and evaluates 16
 fixed adaptation-validation batches every 500 updates. The released parent may have
 already seen these episodes, so this detects post-training overfit but is not an unseen
