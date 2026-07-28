@@ -36,10 +36,12 @@ The command installs `company/requirements.txt` directly into the active contain
 the company workflow does not use venv or Conda. It preserves the image's PyTorch 2.4
 and torchvision packages. Setup removes conflicting OpenCV wheels and installs
 `opencv-python-headless`; this is required because the company image does not provide
-`libGL.so.1`. The final setup check imports `cv2` before any GPU queue can start.
-Setup also downloads the required Push-T data and weights from Hugging Face. Downloads
-use a 120-second read timeout, retry transient failures, and resume files already
-present.
+`libGL.so.1`. It also pins Pymunk 7 because the Push-T simulator uses the
+`Space.on_collision` API introduced in that major version. The final setup check
+imports `cv2` and verifies the Pymunk collision API before any GPU queue can start.
+Setup also downloads the required Push-T data and weights from Hugging Face.
+Downloads use a 120-second read timeout, retry transient failures, and resume files
+already present.
 
 The requirements install W&B 0.22.3, which accepts current long-form API keys. After
 updating an existing checkout, reinstall without touching shared assets before login:
