@@ -15,6 +15,8 @@ REPORTERS = (
     ("OVERNIGHT_BASELINE_AND_ORIGINAL_DFM", "status_overnight.py"),
     ("CORRECTED_LONG_RESEARCH", "status_long_research.py"),
     ("AGGRESSIVE_WEEKEND_RESEARCH", "status_weekend_research.py"),
+    ("ADVANTAGE_ALIGNED_HYPOTHESIS_AUDIT", "status_hypothesis_audit.py"),
+    ("LOCKED_ADVANTAGE_FRONTIER", "status_advantage_frontier.py"),
 )
 
 
@@ -29,6 +31,8 @@ def repository_commit(repo_root):
 
 
 def reporter_command(python, script, asset_root, runtime_root):
+    if script.name == "status_hypothesis_audit.py":
+        return [python, str(script)]
     command = [
         python,
         str(script),
@@ -43,6 +47,9 @@ def reporter_command(python, script, asset_root, runtime_root):
 
 def run_reporter(label, script, args, repo_root):
     print(f"\n===== {label} =====", flush=True)
+    environment = os.environ.copy()
+    environment["DRIFTFLOWWORLD_ASSET_ROOT"] = str(args.asset_root)
+    environment["DRIFTFLOWWORLD_RUNTIME_ROOT"] = str(args.runtime_root)
     result = subprocess.run(
         reporter_command(
             args.python,
@@ -51,6 +58,7 @@ def run_reporter(label, script, args, repo_root):
             args.runtime_root,
         ),
         cwd=repo_root,
+        env=environment,
     )
     print(f"reporter={script.name} exit_code={result.returncode}", flush=True)
     return result.returncode

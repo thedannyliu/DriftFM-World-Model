@@ -48,6 +48,10 @@ def _new_state():
     """Accumulators: per-video metric lists and timing totals."""
     return {
         "mse": [], "ssim": [], "psnr": [], "lpips": [],
+        "action_path": [],
+        "action_step_mean": [],
+        "gt_motion_pixel": [],
+        "gt_motion_vertex": [],
         "final_block_xy_l2": [],
         "final_block_angle_abs_rad": [],
         "final_block_vertex_error": [],
@@ -70,9 +74,24 @@ def _summarize_state(s, video_len, nfe):
         "total_generation_seconds": s["total_gen_time"],
         "generated_frames": s["total_gen_frames"],
         "seconds_per_frame": tpf,
-        "per_video": {name: list(s[name]) for name in ("mse", "ssim", "psnr", "lpips")},
+        "per_video": {
+            name: list(s[name])
+            for name in (
+                "mse",
+                "ssim",
+                "psnr",
+                "lpips",
+                "action_path",
+                "action_step_mean",
+                "gt_motion_pixel",
+            )
+        },
     }
     for name in (
+        "action_path",
+        "action_step_mean",
+        "gt_motion_pixel",
+        "gt_motion_vertex",
         "final_block_xy_l2",
         "final_block_angle_abs_rad",
         "final_block_vertex_error",
@@ -216,18 +235,43 @@ def evaluate_on_many_videos(cfg, num_videos=1000, video_len=64, step=None):
             s["mse"].append(mse_m); s["ssim"].append(ssim_m); s["psnr"].append(psnr_m)
             s["lpips"].append(lpips_m)
 
+            action_j = all_act[j].float()
+            if action_j.shape[0] > 1:
+                action_steps = torch.linalg.vector_norm(
+                    action_j[1:] - action_j[:-1], dim=1
+                )
+                action_path = action_steps.sum().item()
+                action_step_mean = action_steps.mean().item()
+            else:
+                action_path = torch.linalg.vector_norm(action_j).item()
+                action_step_mean = action_path
+            current_gt = gt_j[n_history - 1]
+            gt_last = gt_g[-1]
+            gt_motion_pixel = (
+                current_gt.float() - gt_last.float()
+            ).square().mean().item()
+            s["action_path"].append(action_path)
+            s["action_step_mean"].append(action_step_mean)
+            s["gt_motion_pixel"].append(gt_motion_pixel)
+
             if pose_predictors is not None:
                 gen_last = gen_g[-1]
-                gt_last = gt_g[-1]
                 if cfg.data.normalize_img:
                     gen_last = (gen_last * 0.5) + 0.5
                     gt_last = (gt_last * 0.5) + 0.5
+                    current_gt = (current_gt * 0.5) + 0.5
+                gen_pose = _predict_block_pose(gen_last, pose_predictors)
+                gt_pose = _predict_block_pose(gt_last, pose_predictors)
+                current_pose = _predict_block_pose(current_gt, pose_predictors)
                 pose_errors = _block_pose_errors(
-                    _predict_block_pose(gen_last, pose_predictors),
-                    _predict_block_pose(gt_last, pose_predictors),
+                    gen_pose,
+                    gt_pose,
                 )
                 for name, value in pose_errors.items():
                     s[name].append(value)
+                s["gt_motion_vertex"].append(
+                    estimate_reward_torch(current_pose, gt_pose).item()
+                )
 
             log.info(f"[metrics] video {processed} (batch {i} sample {j}, "
                      f"len={T}, n_gen={n_gen}): MSE={mse_m:.5f} SSIM={ssim_m:.5f} "
