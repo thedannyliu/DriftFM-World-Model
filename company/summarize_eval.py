@@ -80,13 +80,15 @@ def paired_analysis(paths_by_nfe):
         result["transitions"][f"{shallow}_to_{deep}"] = transition
 
     if 2 in payloads and count >= 4:
-        split = count // 2
-        threshold = float(np.median(action_path[:split]))
-        test_action = action_path[split:]
+        dev_indices = np.arange(0, count, 2)
+        test_indices = np.arange(1, count, 2)
+        threshold = float(np.median(action_path[dev_indices]))
+        test_action = action_path[test_indices]
         use_nfe2 = test_action >= threshold
         routing = {
-            "dev_examples": split,
-            "test_examples": int(count - split),
+            "split": "even_index_dev_odd_index_test",
+            "dev_examples": int(dev_indices.size),
+            "test_examples": int(test_indices.size),
             "action_path_threshold": threshold,
             "nfe2_fraction": float(use_nfe2.mean()),
             "metrics": {},
@@ -96,8 +98,8 @@ def paired_analysis(paths_by_nfe):
             nfe2 = payloads[2].get("per_video", {}).get(metric)
             if nfe1 is None or nfe2 is None:
                 continue
-            nfe1 = np.asarray(nfe1, dtype=np.float64)[split:]
-            nfe2 = np.asarray(nfe2, dtype=np.float64)[split:]
+            nfe1 = np.asarray(nfe1, dtype=np.float64)[test_indices]
+            nfe2 = np.asarray(nfe2, dtype=np.float64)[test_indices]
             adaptive = float(np.where(use_nfe2, nfe2, nfe1).mean())
             selected_fraction = float(use_nfe2.mean())
             random_expected = float(
@@ -134,6 +136,7 @@ def main():
     parser.add_argument("--wandb-project")
     parser.add_argument("--wandb-entity")
     parser.add_argument("--wandb-name")
+    parser.add_argument("--wandb-run-id")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
 
@@ -172,6 +175,8 @@ def main():
             project=args.wandb_project,
             name=args.wandb_name,
             job_type="rollout-eval",
+            id=args.wandb_run_id,
+            resume="allow" if args.wandb_run_id else None,
         )
         wandb.log(dict(numeric_items(result)))
         result["wandb_run_id"] = run.id
