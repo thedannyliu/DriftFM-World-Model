@@ -6,6 +6,8 @@ At each planning step,
     - the candidate with the best predicted reward is chosen to execute
 For each evaluation seed, the code saves the full ground-truth PushT rollout, and writes the scores as .npy files.
 """
+import hashlib
+import json
 import os
 import logging
 import numpy as np
@@ -53,6 +55,41 @@ def score_predictions(pred_images, reward_xy, reward_angle, target_pose):
         block_pose = torch.stack((unnormalized_xy[0], unnormalized_xy[1], block_angle))
         rewards.append(estimate_reward_torch(block_pose, target_pose).item())
     return np.asarray(rewards)
+
+
+def score_candidate_actions_in_environment(env, actions, end, resize_scale):
+    """Evaluate action chunks from the current state without changing ``env``."""
+    info = env._get_info()
+    state = np.concatenate((
+        info["pos_agent"],
+        info["block_pose"],
+        info["goal_pose"],
+    ))
+    agent_velocity = tuple(env.agent.velocity)
+    block_velocity = tuple(env.block.velocity)
+    block_angular_velocity = env.block.angular_velocity
+    rewards = []
+    for candidate in actions:
+        clone = PushTImageEnv(
+            domain_filename="push_t",
+            resize_scale=resize_scale,
+        )
+        clone.seed(env._seed)
+        clone.reset()
+        clone._set_state(state)
+        clone.agent.velocity = agent_velocity
+        clone.block.velocity = block_velocity
+        clone.block.angular_velocity = block_angular_velocity
+        candidate_rewards = []
+        for candidate_action in candidate[:end]:
+            _, reward, done, _, _ = clone.step(candidate_action)
+            candidate_rewards.append(reward)
+            if done:
+                break
+        rewards.append(max(candidate_rewards))
+        clone.close()
+    return np.asarray(rewards)
+
 
 def setup_world_model(cfg, filepath):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -112,6 +149,11 @@ def run_gpc_rank(cfg, num_trial, num_parallel, start_number_test, end_number_tes
     nfe = planning.get("nfe", 1)
     refine_nfe = planning.get("refine_nfe", 4)
     refine_ratio = planning.get("refine_ratio", 0.2)
+    save_videos = planning.get("save_videos", True)
+    audit_candidate_ground_truth = planning.get(
+        "audit_candidate_ground_truth",
+        False,
+    )
     if strategy not in {"uniform_breadth", "uniform_depth", "coarse_to_fine"}:
         raise ValueError(f"Unknown planning strategy: {strategy}")
     os.makedirs(output_dir, exist_ok=True)
@@ -147,6 +189,7 @@ def run_gpc_rank(cfg, num_trial, num_parallel, start_number_test, end_number_tes
     env_j_scores = []
     env_seed = 100050   # first test seed
     forward_pass_time_list = []
+    first_decision_records = []
 
     with open("./domains_yaml/{}.yml".format('push_t'), 'r') as stream:
         data_loaded = yaml.safe_load(stream)
@@ -179,11 +222,16 @@ def run_gpc_rank(cfg, num_trial, num_parallel, start_number_test, end_number_tes
         obs_deque = collections.deque([obs] * obs_horizon, maxlen=obs_horizon)
         # save visualization and rewards
         # draw_action_marker=False keeps the ground-truth rollout free of the red action cross
-        baseline_imgs = [env.render_highres(baseline_render_size, draw_action_marker=False)]
+        baseline_imgs = (
+            [env.render_highres(baseline_render_size, draw_action_marker=False)]
+            if save_videos
+            else []
+        )
 
         rewards = list()
         done = False
         step_idx = 0
+        first_decision_recorded = False
 
         transform = v2.Compose([
             v2.ToImage(),
@@ -277,6 +325,8 @@ def run_gpc_rank(cfg, num_trial, num_parallel, start_number_test, end_number_tes
                     action = np.swapaxes(action,0,1) # new shape: (num_trials, time, action_dim)
 
                     all_reward_candidate = []
+                    coarse_reward_candidate = None
+                    refine_indices_np = np.asarray([], dtype=np.int64)
                     if len(pred_imgs) > 0:
                         # seed window: last K frames s_(t-cur_idx), ..., s_t. Left-pad by repeating the
                         # earliest available frame if fewer than K frames have accumulated yet.
@@ -323,6 +373,11 @@ def run_gpc_rank(cfg, num_trial, num_parallel, start_number_test, end_number_tes
                             reward_predictor_cossin_angle,
                             target_pose,
                         )
+                        coarse_reward_candidate = (
+                            all_reward_candidate.copy()
+                            if strategy == "coarse_to_fine"
+                            else None
+                        )
 
                         if strategy == "coarse_to_fine":
                             refine_count = min(
@@ -368,6 +423,37 @@ def run_gpc_rank(cfg, num_trial, num_parallel, start_number_test, end_number_tes
 
                     #### NOTE GPC-RANK: evaluate and rank the num_trial candidate action trajectories that were simulated by the world model
                     if len(all_reward_candidate) > 0: # RANKING STEP
+                        if not first_decision_recorded:
+                            ground_truth_candidate_rewards = (
+                                score_candidate_actions_in_environment(
+                                    env,
+                                    action,
+                                    end,
+                                    resize_scale,
+                                )
+                                if audit_candidate_ground_truth
+                                else None
+                            )
+                            first_decision_records.append({
+                                "test_index": test_index,
+                                "step_index": step_idx,
+                                "policy_actions_sha256": hashlib.sha256(
+                                    np.ascontiguousarray(action).tobytes()
+                                ).hexdigest(),
+                                "coarse_candidate_scores": (
+                                    coarse_reward_candidate.tolist()
+                                    if coarse_reward_candidate is not None
+                                    else None
+                                ),
+                                "final_candidate_scores": all_reward_candidate.tolist(),
+                                "refine_indices": refine_indices_np.tolist(),
+                                "ground_truth_candidate_rewards": (
+                                    ground_truth_candidate_rewards.tolist()
+                                    if ground_truth_candidate_rewards is not None
+                                    else None
+                                ),
+                            })
+                            first_decision_recorded = True
                         pick_index = np.argsort(all_reward_candidate, kind="stable")[0]
                         action_pick = action[pick_index][:end] # best sequence
                         log.info(all_reward_candidate[pick_index])
@@ -382,7 +468,13 @@ def run_gpc_rank(cfg, num_trial, num_parallel, start_number_test, end_number_tes
                     obs_deque.append(obs)
                     # and reward/vis
                     rewards.append(reward)
-                    baseline_imgs.append(env.render_highres(baseline_render_size, draw_action_marker=False))
+                    if save_videos:
+                        baseline_imgs.append(
+                            env.render_highres(
+                                baseline_render_size,
+                                draw_action_marker=False,
+                            )
+                        )
 
                     # use a marker-free render for the seed frames
                     # this keeps both the saved video and the world-model conditioning marker-free
@@ -410,14 +502,33 @@ def run_gpc_rank(cfg, num_trial, num_parallel, start_number_test, end_number_tes
         env_j_scores.append(max_reward)
         log.info(f"(demo {test_index}/{end_number_test-start_number_test}) reward {max_reward} | running average {np.mean(env_j_scores)}")
 
-        log.info(f"Saving visualization of the first few demos")
-        log.info(f"imgs: {len(baseline_imgs)}") # number of (size, size, 3) uint8 RGB frames
-        imageio.mimsave(f"{output_dir}/baseline_single_dp_on_domain_{env_id}_test_{test_index}_res{baseline_render_size}.mp4",
-                        baseline_imgs, fps=4)
+        if save_videos:
+            log.info(f"Saving visualization of the first few demos")
+            log.info(f"imgs: {len(baseline_imgs)}") # number of (size, size, 3) uint8 RGB frames
+            imageio.mimsave(f"{output_dir}/baseline_single_dp_on_domain_{env_id}_test_{test_index}_res{baseline_render_size}.mp4",
+                            baseline_imgs, fps=4)
         np.save(f"{output_dir}/corrected_sampling_based_testing_no_simulation_planning_receding_result_from_index_f{start_number_test}.npy", np.array(env_j_scores))
+        np.save(
+            f"{output_dir}/planning_seconds_from_index_f{start_number_test}.npy",
+            np.asarray(forward_pass_time_list),
+        )
+        with open(
+            f"{output_dir}/first_decision_candidates_from_index_f{start_number_test}.json",
+            "w",
+        ) as output_file:
+            json.dump(first_decision_records, output_file)
 
     answer = np.mean(env_j_scores)
     log.info("Single DP on Domain #{} Avg Score: {}".format(env_id, answer))
     scores.append(env_j_scores)
     np.save(f"{output_dir}/final_corrected_sampling_based_testing_no_simulation_planning_receding_result_from_index_f{start_number_test}.npy", np.array(scores))
+    np.save(
+        f"{output_dir}/planning_seconds_from_index_f{start_number_test}.npy",
+        np.asarray(forward_pass_time_list),
+    )
+    with open(
+        f"{output_dir}/first_decision_candidates_from_index_f{start_number_test}.json",
+        "w",
+    ) as output_file:
+        json.dump(first_decision_records, output_file)
     return answer

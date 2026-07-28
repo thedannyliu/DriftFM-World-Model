@@ -17,6 +17,7 @@ REPORTERS = (
     ("AGGRESSIVE_WEEKEND_RESEARCH", "status_weekend_research.py"),
     ("ADVANTAGE_ALIGNED_HYPOTHESIS_AUDIT", "status_hypothesis_audit.py"),
     ("LOCKED_ADVANTAGE_FRONTIER", "status_advantage_frontier.py"),
+    ("UNORDERED_GENERATIVE_FIDELITY", "status_unordered_fidelity.py"),
 )
 
 
