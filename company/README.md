@@ -392,6 +392,49 @@ bash company/run_advantage_followup.sh node-a --print-plan
 bash company/run_advantage_followup.sh node-b --print-plan
 ```
 
+### Four-node unordered-fidelity planning audit
+
+The next experiment wave uses frozen checkpoints to test whether NFE is an ordered
+decision fidelity. It creates no new model checkpoints. Each row runs 20 fixed Push-T
+test seeds by default, sharded over four H100s; completed shards and one atomic
+`/group-volume` row marker make interruption and restart safe. Compact summaries log
+online to the `driftfm-unordered-fidelity-company` W&B project.
+
+Run exactly one queue per independent node:
+
+```bash
+bash company/run_unordered_fidelity_queue.sh node-a
+bash company/run_unordered_fidelity_queue.sh node-b
+bash company/run_unordered_fidelity_queue.sh node-c
+bash company/run_unordered_fidelity_queue.sh node-d
+```
+
+Node A fixes 32 candidates and scans NFE 1/2/4/8. Node B matches 64 nominal model
+evaluations while trading breadth for depth. Node C compares fixed allocation with
+three coarse-to-fine racing rules at nominal budget 32. Node D repeats representative
+settings with the ep300 proposal policy. Every queue compares the same four frozen
+world-model families. The canonical 64-row allocation is
+`company/unordered_fidelity_plan.tsv`; print it without GPUs or credentials with:
+
+```bash
+bash company/run_unordered_fidelity_queue.sh node-a --print-plan
+bash company/run_unordered_fidelity_queue.sh node-b --print-plan
+bash company/run_unordered_fidelity_queue.sh node-c --print-plan
+bash company/run_unordered_fidelity_queue.sh node-d --print-plan
+```
+
+Inspect all shared results from any node:
+
+```bash
+python3 company/status_unordered_fidelity.py all
+python3 company/status_all_experiments.py
+```
+
+Increase `GPC_NUM_TRIALS` only before starting the wave; it must be a multiple of
+four, and a completed row marker fixes the trial count for that row. The hypothesis,
+prior-work boundary, falsifiers, and follow-up decision gates are documented in
+`docs/unordered-generative-fidelity.md`.
+
 Post-training holds out episodes 490–499 from each 500-episode domain and evaluates 16
 fixed adaptation-validation batches every 500 updates. The released parent may have
 already seen these episodes, so this detects post-training overfit but is not an unseen
