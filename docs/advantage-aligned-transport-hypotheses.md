@@ -254,6 +254,16 @@ deterministic even-index development and odd-index test examples. Because this
 correction follows inspection of the outcome, routing remains exploratory until an
 independently preregistered replication.
 
+The corrected node-A summaries route 49% of examples to NFE2. Across the three
+K1/grid=.25 latest seeds, action routing improves equal-budget random allocation by
+mean `2.01%` in MSE and `3.80%` in final block-vertex error, with both risks improving
+in 3/3 seeds. The same rule is mixed on K1 validation-best
+(`+0.53%/-0.28%` mean MSE/vertex change) and on the two available K32 seeds
+(`+0.65%/+1.61%`). This supports a conditional statement: action difficulty can
+locate NFE2 advantage after a useful two-step map has been learned, but it is not a
+universal remedy for arbitrary checkpoints. Full values are in
+[`results/2026-07-28-action-routing-refresh.md`](results/2026-07-28-action-routing-refresh.md).
+
 This test distinguishes three perspectives:
 
 1. generic composition failure;
