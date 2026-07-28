@@ -26,5 +26,7 @@ Current complete shared-status snapshot:
 [`results/2026-07-28-1827-all-experiments-status.md`](results/2026-07-28-1827-all-experiments-status.md).
 The corrected non-degenerate routing addendum is
 [`results/2026-07-28-action-routing-refresh.md`](results/2026-07-28-action-routing-refresh.md).
+The decision to stop the obsolete deep weekend queues is
+[`results/2026-07-28-weekend-pruning-decision.md`](results/2026-07-28-weekend-pruning-decision.md).
 The earlier 8/16 diagnostic is retained as
 [`results/2026-07-28-hypothesis-audit-partial.md`](results/2026-07-28-hypothesis-audit-partial.md).
