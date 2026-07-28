@@ -16,6 +16,10 @@ execution:
 policies:
   discovery: ep100
   replication: ep300
+  checkpoint_source: diffusion_policy_v1/ckpt_save/ckpt-{policy}.pth
+  checkpoint_format: monolithic-model-and-ema
+  loader_mode: non-official
+  proposal_rng_base_seed: 5
 world_models:
   - tag: driftflow-endpointnorm-k1-grid25
     seed: 2

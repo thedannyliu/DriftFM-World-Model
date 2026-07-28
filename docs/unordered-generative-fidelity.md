@@ -112,6 +112,13 @@ count are fixed within each comparison. Results write an atomic shared marker un
 `/group-volume`; interrupted rows retain completed shards and reuse them on restart.
 Only the final compact summary is logged to W&B.
 
+The policy comparison uses the monolithic
+`diffusion_policy_v1/ckpt_save/ckpt-ep{100,300}.pth` checkpoints with the
+non-official loader (`model` plus `ema` state) and a shared proposal RNG base seed of
+5. This isolates policy training maturity from checkpoint format and sampling-seed
+changes. The separate `diffusion_policy_gpc/` component directory is not used in this
+comparison.
+
 | Node | Question | Comparisons | Why it is identifiable |
 | --- | --- | --- | --- |
 | A | Does more compute help with candidate count fixed? | 32 candidates at NFE 1/2/4/8, plus real-simulator first-decision reward for every candidate | Changes only inference depth and directly measures ranking regret. |
