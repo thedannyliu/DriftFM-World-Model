@@ -42,7 +42,7 @@ if [[ -z ${WANDB_API_KEY:-} && ( -z ${HOME:-} || ! -f ${HOME}/.netrc ) ]]; then
     exit 1
 fi
 python3 -c \
-    'import cv2, torch, wandb; assert torch.cuda.device_count() == 4, torch.cuda.device_count(); print(f"[unordered-fidelity] preflight=pass torch={torch.__version__} opencv={cv2.__version__} cv2={cv2.__file__} wandb={wandb.__version__} gpus={torch.cuda.device_count()}")'
+    'import cv2, importlib.metadata, pymunk, torch, wandb; assert hasattr(pymunk.Space, "on_collision"), "Pymunk 7 API is required"; assert torch.cuda.device_count() == 4, torch.cuda.device_count(); pymunk_version = importlib.metadata.version("pymunk"); print(f"[unordered-fidelity] preflight=pass torch={torch.__version__} opencv={cv2.__version__} cv2={cv2.__file__} pymunk={pymunk_version} wandb={wandb.__version__} gpus={torch.cuda.device_count()}")'
 
 failures=()
 for row in "${ROWS[@]}"; do
