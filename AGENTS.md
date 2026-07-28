@@ -147,5 +147,9 @@ put them in the core `driftworld/` implementation or its default configs.
 - Current company pilot capacity is two independent nodes with four H100 GPUs each.
   Use single-node four-process DDP per arm and keep global batch size matched across
   control and Drift Flow runs.
+- The 2026-07-28 two-node diagnostic follow-up is launched with
+  `company/run_advantage_followup.sh`. It completes missing hypothesis audits before
+  the frozen-checkpoint locked1000 frontier. It creates no new model checkpoints;
+  checkpoint-level evaluation markers make interruption and restart safe.
 - Full logs stay on the company volume. Command-line launchers must print only concise,
   pasteable status or metric summaries so results can be transferred back manually.
