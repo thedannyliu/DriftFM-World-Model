@@ -34,9 +34,12 @@ Run this inside the company image
 `ngc24.06-ub22-py3.10-cu12.5-cudnn9.1-pytorch2.4-deepspeed0.14-8packing`.
 The command installs `company/requirements.txt` directly into the active container;
 the company workflow does not use venv or Conda. It preserves the image's PyTorch 2.4
-and torchvision packages and downloads the required Push-T data and weights from
-Hugging Face. Downloads use a 120-second read timeout, retry transient failures, and
-resume files already present.
+and torchvision packages. Setup removes conflicting OpenCV wheels and installs
+`opencv-python-headless`; this is required because the company image does not provide
+`libGL.so.1`. The final setup check imports `cv2` before any GPU queue can start.
+Setup also downloads the required Push-T data and weights from Hugging Face. Downloads
+use a 120-second read timeout, retry transient failures, and resume files already
+present.
 
 The requirements install W&B 0.22.3, which accepts current long-form API keys. After
 updating an existing checkout, reinstall without touching shared assets before login:

@@ -19,8 +19,14 @@ echo "[1/4] Checking NGC Python 3.10 / PyTorch 2.4 image"
 "${PYTHON_BIN}" -c 'import sys, torch, torchvision; assert sys.version_info[:2] == (3, 10), sys.version; assert torch.__version__.split("+")[0].startswith("2.4."), torch.__version__'
 
 echo "[2/4] Installing Python dependencies into the active container (log: ${SETUP_LOG})"
-if ! "${PYTHON_BIN}" -m pip install -r "${REPO_ROOT}/company/requirements.txt" \
-    2>&1 | tee "${SETUP_LOG}"; then
+if ! {
+    # OpenCV wheels share the cv2 namespace. Remove every variant first so a
+    # previously installed GUI wheel cannot overwrite the headless files.
+    "${PYTHON_BIN}" -m pip uninstall -y \
+        opencv-python opencv-contrib-python \
+        opencv-python-headless opencv-contrib-python-headless
+    "${PYTHON_BIN}" -m pip install -r "${REPO_ROOT}/company/requirements.txt"
+} 2>&1 | tee "${SETUP_LOG}"; then
     echo "Environment installation failed; full log: ${SETUP_LOG}" >&2
     exit 1
 fi
@@ -41,5 +47,5 @@ fi
 
 echo "[4/4] Verifying active container"
 "${PYTHON_BIN}" -c \
-    'import hydra, huggingface_hub, json, numpy, omegaconf, torch, torch.distributed.run, torchvision, wandb, zarr; print(json.dumps({"status":"ready","torch":torch.__version__,"torchvision":torchvision.__version__,"cuda":torch.version.cuda,"numpy":numpy.__version__,"zarr":zarr.__version__,"omegaconf":omegaconf.__version__,"huggingface_hub":huggingface_hub.__version__,"wandb":wandb.__version__,"distributed_launcher":True,"gpu_count":torch.cuda.device_count()}))'
+    'import cv2, hydra, huggingface_hub, json, numpy, omegaconf, torch, torch.distributed.run, torchvision, wandb, zarr; print(json.dumps({"status":"ready","torch":torch.__version__,"torchvision":torchvision.__version__,"cuda":torch.version.cuda,"numpy":numpy.__version__,"opencv":cv2.__version__,"opencv_path":cv2.__file__,"zarr":zarr.__version__,"omegaconf":omegaconf.__version__,"huggingface_hub":huggingface_hub.__version__,"wandb":wandb.__version__,"distributed_launcher":True,"gpu_count":torch.cuda.device_count()}))'
 echo "setup_log=${SETUP_LOG}"
