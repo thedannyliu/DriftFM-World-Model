@@ -57,8 +57,9 @@ premature and unnecessary pressure on the nearly full group volume.
 
 ## Next experiment: locked advantage frontier
 
-After node B and node D complete the missing audit, evaluate the same mechanism
-families with 1000 Push-T videos at NFE `1/2/4/8`. The evaluation records aligned
+After node B and node D complete the missing audit, evaluate completed, immutable
+K=1/K=32/joint/deep-training checkpoints with 1000 Push-T videos at NFE
+`1/2/4/8`. Actively updated weekend checkpoints are excluded. The evaluation records aligned
 per-video LPIPS, MSE, final block-vertex error, action-path length, ground-truth pixel
 motion, and ground-truth block motion.
 

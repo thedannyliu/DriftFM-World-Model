@@ -364,7 +364,8 @@ NFE1/2/4/8 occupy GPUs 0/1/2/3 concurrently. The first-25-video benchmark projec
 more than 12 hours per queue, although exact duration depends on shared I/O. No model
 checkpoint is created. A completed checkpoint is resumable through its
 `advantage-locked1000` marker, and every evaluation logs online to the existing W&B
-project.
+project. The frontier uses only completed K=1, K=32, joint, and deep-training
+checkpoints; it never reads a `best` file that an active weekend queue may replace.
 
 The evaluation records aligned per-video normalized action path and ground-truth motion in
 addition to LPIPS, MSE, and final block-pose error. It reports whether an action-path
