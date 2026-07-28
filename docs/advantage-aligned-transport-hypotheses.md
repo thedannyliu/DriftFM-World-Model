@@ -223,22 +223,36 @@ python3 company/status_hypothesis_audit.py
 An individual four-checkpoint node summary is labeled partial coverage. Only the
 combined report is allowed to select the next research stage.
 
-## 2026-07-28 partial observation and Stage 2
+## 2026-07-28 observation and Stage 2
 
-Node A and node C have completed 8/16 audits. Mean MSE improves by
-`17.80%/21.28%/22.14%` at NFE2/4/8 versus NFE1, while final block-vertex error
-improves by `6.76%/7.44%/7.03%`. This coexists with the earlier locked100 LPIPS
-rebound. Composition correlations are negative and fail the preregistered gate;
-NFE8 model-source penalties are large but do not imply MSE degradation. The dynamics
-gate passes provisionally. Full values and limitations are recorded in
-[`results/2026-07-28-hypothesis-audit-partial.md`](results/2026-07-28-hypothesis-audit-partial.md).
+Node A, B, and C have completed 12/16 audits. Mean MSE improves by
+`14.20%/16.60%/16.90%` at NFE2/4/8 versus NFE1, while final block-vertex error
+improves by `4.07%/3.56%/2.72%`. Composition correlations are negative:
+median `-.4554/-.3004` at NFE2→4/NFE4→8, with a positive sign in only `0/12`
+and `1/12` checkpoints. The preregistered composition-amplification mechanism is
+therefore rejected: even if all four missing node-D audits were positive, neither
+transition could reach the required 75% positive fraction. Model-source penalties
+are large and the off-manifold gate passes, but the negative correlations show that
+shift magnitude is not the proposed cause of degradation. The motion gate remains a
+provisional lead. Full values and limitations are recorded in
+[`results/2026-07-28-1827-all-experiments-status.md`](results/2026-07-28-1827-all-experiments-status.md).
 
-The immediate follow-up is not H4 training. First collect node B and node D. Then run
-a 1000-video paired advantage frontier on frozen checkpoints, measuring LPIPS, MSE,
-block-pose risk, and pre-inference action-path difficulty at NFE1/2/4/8. The
-deployable diagnostic routes high-action-path examples to NFE2 using a threshold
-fixed on the first half and reports performance on the second half against random
-allocation at the same mean NFE.
+The immediate follow-up is not H4 training. Complete node D for protocol closure and
+finish the 1000-video paired advantage frontier on frozen checkpoints, measuring
+LPIPS, MSE, block-pose risk, and pre-inference action-path difficulty at
+NFE1/2/4/8. Node A's first eight checkpoints already show a reproducible finite NFE2
+optimum for K=1/grid=.25: across three latest seeds, NFE2 changes mean LPIPS, MSE,
+and block error by `-31.96%`, `-3.61%`, and `-1.96%`. NFE4/8 then worsen MSE and
+block dynamics.
+
+The original routing diagnostic used the first half of an ordered evaluation set for
+the threshold and the second half for evaluation. Every completed checkpoint reports
+exactly zero adaptive-versus-random change, which is consistent with a single-NFE
+decision; the old status reporter omitted the selected fraction. Those routing
+fields are uninterpretable. Re-summarization exposes the fraction and interleaves
+deterministic even-index development and odd-index test examples. Because this
+correction follows inspection of the outcome, routing remains exploratory until an
+independently preregistered replication.
 
 This test distinguishes three perspectives:
 
@@ -246,6 +260,10 @@ This test distinguishes three perspectives:
 2. a distortion/perception tradeoff with action-relevant depth benefit; and
 3. a non-action-relevant MSE artifact.
 
-Only the second outcome motivates risk-conditional inference depth. It would still
-require task-level planning evidence and a stronger method before meeting the
-top-venue bar.
+Only the second outcome motivates risk-conditional inference depth. The stronger
+current framing is **finite-depth transport regularization** rather than generic
+test-time scalability: exact-grid supervision can create a useful two-step solver,
+while repeated application accumulates distortion and dynamics error. It still
+requires a same-code official baseline, paired confidence intervals, latency,
+task-level planning evidence, and another environment before meeting the top-venue
+bar.
