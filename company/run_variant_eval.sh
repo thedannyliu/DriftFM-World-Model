@@ -22,6 +22,7 @@ RUNTIME_ROOT=${DRIFTFLOWWORLD_RUNTIME_ROOT:-/user-volume/driftworld}
 PYTHON_BIN=${PYTHON_BIN:-python3}
 NUM_VIDEOS=${EVAL_NUM_VIDEOS:-25}
 read -r -a NFES <<< "${EVAL_NFES:-1 2 4}"
+PROGRESS_EVERY=${EVAL_PROGRESS_EVERY:-100}
 SEED=${SEED:-1}
 TRANSPORT_PARAMETERIZATION=${DRIFTFLOW_TRANSPORT_PARAMETERIZATION:-residual}
 RESULT_LABEL=${EVAL_RESULT_LABEL:-}
@@ -37,6 +38,10 @@ if [[ -n ${RESULT_LABEL} && ! ${RESULT_LABEL} =~ ^[A-Za-z0-9._-]+$ ]]; then
 fi
 if (( ${#NFES[@]} < 1 || ${#NFES[@]} > 4 )); then
     echo "EVAL_NFES must contain between one and four values" >&2
+    exit 2
+fi
+if [[ ! ${PROGRESS_EVERY} =~ ^[1-9][0-9]*$ ]]; then
+    echo "EVAL_PROGRESS_EVERY must be a positive integer" >&2
     exit 2
 fi
 for NFE in "${NFES[@]}"; do
@@ -91,6 +96,24 @@ for INDEX in "${!NFES[@]}"; do
     NAMES+=("nfe${NFE}")
 done
 
+tail --pid=$$ -n 0 -F "${LOG_DIR}"/nfe*.log 2>/dev/null \
+    | awk -v every="${PROGRESS_EVERY}" '
+        /\[metrics\] video [0-9]+/ {
+            if (match($0, /video [0-9]+/)) {
+                value = substr($0, RSTART + 6, RLENGTH - 6)
+                if (value % every == 0) {
+                    print "[variant-eval] progress " $0
+                    fflush()
+                }
+            }
+        }
+        /\[summary\] per-video averages/ {
+            print "[variant-eval] progress " $0
+            fflush()
+        }
+    ' &
+MONITOR_PID=$!
+
 FAILED=0
 for INDEX in "${!PIDS[@]}"; do
     if wait "${PIDS[${INDEX}]}"; then
@@ -101,6 +124,8 @@ for INDEX in "${!PIDS[@]}"; do
         FAILED=1
     fi
 done
+kill "${MONITOR_PID}" 2>/dev/null || true
+wait "${MONITOR_PID}" 2>/dev/null || true
 if (( FAILED )); then
     exit 1
 fi

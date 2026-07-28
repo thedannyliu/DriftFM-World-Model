@@ -20,6 +20,7 @@ ASSET_ROOT=${DRIFTFLOWWORLD_ASSET_ROOT:-/group-volume/danny-dataset/driftworld}
 PLAN=${REPO_ROOT}/company/advantage_frontier_plan.tsv
 NUM_VIDEOS=${FRONTIER_NUM_VIDEOS:-1000}
 RESULT_LABEL=${FRONTIER_RESULT_LABEL:-advantage-locked1000}
+export EVAL_PROGRESS_EVERY=${FRONTIER_PROGRESS_EVERY:-250}
 WANDB_PROJECT=${WANDB_PROJECT:-driftfm-world-model-company}
 
 mapfile -t ROWS < <(awk -F '\t' -v role="${QUEUE_ROLE}" \
@@ -31,7 +32,7 @@ fi
 
 echo "[frontier] queue=${QUEUE_ROLE} checkpoints=${#ROWS[@]} videos=${NUM_VIDEOS} nfes=1,2,4,8"
 echo "[frontier] question=does-depth-improve-action-risk-while-perceptual-risk-diverges"
-echo "[frontier] retention=no-new-checkpoints resume=checkpoint-level-marker wandb_mode=online"
+echo "[frontier] retention=no-new-checkpoints resume=checkpoint-level-marker wandb_mode=online progress_every=${EVAL_PROGRESS_EVERY}"
 for row in "${ROWS[@]}"; do
     IFS=$'\t' read -r role name tag seed checkpoint family <<< "${row}"
     echo "PLAN name=${name} tag=${tag} seed=${seed} checkpoint=${checkpoint} family=${family}"
