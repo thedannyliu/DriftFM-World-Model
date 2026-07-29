@@ -50,8 +50,16 @@ def decision_summary(decisions):
     oracle_selections = []
     ground_truth_sets = 0
     policy_action_hashes = []
+    policy_action_prefix_hashes = []
+    environment_state_hashes = []
     for decision in decisions:
         policy_action_hashes.append(decision.get("policy_actions_sha256"))
+        policy_action_prefix_hashes.append(
+            decision.get("policy_action_prefix_sha256")
+        )
+        environment_state_hashes.append(
+            decision.get("environment_state_sha256")
+        )
         final = np.asarray(decision["final_candidate_scores"], dtype=np.float64)
         candidate_counts.append(final.size)
         if final.size >= 2:
@@ -118,6 +126,8 @@ def decision_summary(decisions):
             float(np.mean(oracle_selections)) if oracle_selections else None
         ),
         "policy_action_hashes": policy_action_hashes,
+        "policy_action_prefix_hashes": policy_action_prefix_hashes,
+        "environment_state_hashes": environment_state_hashes,
     }
 
 

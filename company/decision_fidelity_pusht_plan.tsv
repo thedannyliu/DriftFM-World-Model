@@ -1,0 +1,12 @@
+node-a	n0-confirm80-k1-ep100-64x1	driftflow-endpointnorm-k1-grid25	2	best	k1-grid25	ep100	uniform_breadth	64	1	1	0	heldout-breadth-vs-depth
+node-a	n0-confirm80-k1-ep300-64x1	driftflow-endpointnorm-k1-grid25	2	best	k1-grid25	ep300	uniform_breadth	64	1	1	0	heldout-breadth-vs-depth
+node-a	n0-confirm80-k32-ep100-64x1	driftflow-endpointnorm-k32	2	latest	k32	ep100	uniform_breadth	64	1	1	0	heldout-breadth-vs-depth
+node-a	n0-confirm80-k32-ep300-64x1	driftflow-endpointnorm-k32	2	latest	k32	ep300	uniform_breadth	64	1	1	0	heldout-breadth-vs-depth
+node-a	n0-confirm80-joint-ep100-64x1	driftflow-endpointnorm-k16-grid25-sr25	2	latest	joint-k16	ep100	uniform_breadth	64	1	1	0	heldout-breadth-vs-depth
+node-a	n0-confirm80-joint-ep300-64x1	driftflow-endpointnorm-k16-grid25-sr25	2	latest	joint-k16	ep300	uniform_breadth	64	1	1	0	heldout-breadth-vs-depth
+node-a	n0-confirm80-deep-ep100-64x1	wknd-d-base-k16	1	best	deep-base-k16	ep100	uniform_breadth	64	1	1	0	heldout-breadth-vs-depth
+node-a	n0-confirm80-deep-ep300-64x1	wknd-d-base-k16	1	best	deep-base-k16	ep300	uniform_breadth	64	1	1	0	heldout-breadth-vs-depth
+node-b	n1-smoke16-k32-ep100-nfe1	driftflow-endpointnorm-k32	2	latest	k32	ep100	uniform_depth	16	1	1	0	later-state-label-smoke
+node-b	n1-smoke16-k32-ep100-nfe4	driftflow-endpointnorm-k32	2	latest	k32	ep100	uniform_depth	16	4	4	0	later-state-label-smoke
+node-b	n1-smoke16-k32-ep300-nfe1	driftflow-endpointnorm-k32	2	latest	k32	ep300	uniform_depth	16	1	1	0	later-state-label-smoke
+node-b	n1-smoke16-k32-ep300-nfe4	driftflow-endpointnorm-k32	2	latest	k32	ep300	uniform_depth	16	4	4	0	later-state-label-smoke

@@ -46,6 +46,12 @@ TRIAL_OFFSET=${GPC_TRIAL_OFFSET:-0}
 POLICY_SEED=${GPC_POLICY_SEED:-5}
 WANDB_PROJECT=${WANDB_PROJECT:-driftfm-unordered-fidelity-company}
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+CANDIDATE_ANCHOR_COUNT=${GPC_CANDIDATE_ANCHOR_COUNT:-0}
+EXECUTION_STRATEGY=${GPC_EXECUTION_STRATEGY:-gpc_rank}
+AUDIT_MAX_DECISIONS=${GPC_AUDIT_MAX_DECISIONS:-1}
+AUDIT_CANDIDATE_STEPS=${GPC_AUDIT_CANDIDATE_STEPS:-0}
+AUDIT_HOLD_STEPS=${GPC_AUDIT_HOLD_STEPS:-0}
+AUDIT_REPEAT_GROUND_TRUTH=${GPC_AUDIT_REPEAT_GROUND_TRUTH:-false}
 
 if (( NUM_TRIALS < 4 || NUM_TRIALS % 4 != 0 )); then
     echo "GPC_NUM_TRIALS must be a positive multiple of four" >&2
@@ -57,6 +63,21 @@ if [[ ! ${TRIAL_OFFSET} =~ ^[0-9]+$ ]]; then
 fi
 if [[ ! ${POLICY_SEED} =~ ^[0-9]+$ ]]; then
     echo "GPC_POLICY_SEED must be a non-negative integer" >&2
+    exit 2
+fi
+for value in "${CANDIDATE_ANCHOR_COUNT}" "${AUDIT_MAX_DECISIONS}" \
+    "${AUDIT_CANDIDATE_STEPS}" "${AUDIT_HOLD_STEPS}"; do
+    if [[ ! ${value} =~ ^[0-9]+$ ]]; then
+        echo "GPC audit and anchor counts must be non-negative integers" >&2
+        exit 2
+    fi
+done
+if [[ ${EXECUTION_STRATEGY} != gpc_rank && ${EXECUTION_STRATEGY} != policy_first ]]; then
+    echo "GPC_EXECUTION_STRATEGY must be gpc_rank or policy_first" >&2
+    exit 2
+fi
+if [[ ${AUDIT_REPEAT_GROUND_TRUTH} != true && ${AUDIT_REPEAT_GROUND_TRUTH} != false ]]; then
+    echo "GPC_AUDIT_REPEAT_GROUND_TRUTH must be true or false" >&2
     exit 2
 fi
 
@@ -109,12 +130,20 @@ AUDIT_CANDIDATES=false
 if [[ ${NAME} == a-* ]]; then
     AUDIT_CANDIDATES=true
 fi
+if [[ -n ${GPC_AUDIT_CANDIDATES:-} ]]; then
+    AUDIT_CANDIDATES=${GPC_AUDIT_CANDIDATES}
+fi
+if [[ ${AUDIT_CANDIDATES} != true && ${AUDIT_CANDIDATES} != false ]]; then
+    echo "GPC_AUDIT_CANDIDATES must be true or false" >&2
+    exit 2
+fi
 
 echo "[gpc-budget] name=${NAME} family=${FAMILY} policy=${POLICY} strategy=${STRATEGY}"
 echo "[gpc-budget] proposals=${PROPOSALS} parallel=${NUM_PARALLEL} nfe=${NFE} refine_nfe=${REFINE_NFE} refine_ratio=${REFINE_RATIO} trials=${NUM_TRIALS}"
 echo "[gpc-budget] trial_range=${TRIAL_OFFSET}:$((TRIAL_OFFSET + NUM_TRIALS))"
 echo "[gpc-budget] checkpoint=${WORLD_CHECKPOINT} policy_checkpoint=${POLICY_CHECKPOINT} policy_loader=monolithic policy_seed=${POLICY_SEED}"
-echo "[gpc-budget] candidate_ground_truth=${AUDIT_CANDIDATES} logs=${LOG_DIR}"
+echo "[gpc-budget] execution=${EXECUTION_STRATEGY} anchor=${CANDIDATE_ANCHOR_COUNT} candidate_ground_truth=${AUDIT_CANDIDATES} audit=${AUDIT_MAX_DECISIONS}x(candidate_steps=${AUDIT_CANDIDATE_STEPS},hold=${AUDIT_HOLD_STEPS},repeat=${AUDIT_REPEAT_GROUND_TRUTH})"
+echo "[gpc-budget] logs=${LOG_DIR}"
 
 PIDS=()
 NAMES=()
@@ -145,6 +174,12 @@ for GPU in 0 1 2 3; do
         planning.refine_ratio="${REFINE_RATIO}" \
         +planning.save_videos=false \
         +planning.audit_candidate_ground_truth="${AUDIT_CANDIDATES}" \
+        +planning.audit_max_decisions="${AUDIT_MAX_DECISIONS}" \
+        +planning.audit_candidate_steps="${AUDIT_CANDIDATE_STEPS}" \
+        +planning.audit_hold_steps="${AUDIT_HOLD_STEPS}" \
+        +planning.audit_repeat_ground_truth="${AUDIT_REPEAT_GROUND_TRUTH}" \
+        +planning.execution_strategy="${EXECUTION_STRATEGY}" \
+        +planning.candidate_anchor_count="${CANDIDATE_ANCHOR_COUNT}" \
         +model.drift_flow.transport_parameterization=endpoint_normalized \
         +start_number_test="${START}" \
         +end_number_test="${END}" \

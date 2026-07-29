@@ -38,6 +38,8 @@ def write_shard(root, start, end, scores, decisions):
 def test_load_shards_and_ground_truth_diagnostics(tmp_path):
     decisions = [{
         "policy_actions_sha256": "paired-candidates",
+        "policy_action_prefix_sha256": {"2": "paired-prefix"},
+        "environment_state_sha256": "paired-state",
         "final_candidate_scores": [0.1, 0.4, 0.7, 1.0],
         "coarse_candidate_scores": [0.1, 0.8, 0.2, 1.0],
         "ground_truth_candidate_rewards": [1.0, 0.6, 0.4, 0.0],
@@ -58,6 +60,14 @@ def test_load_shards_and_ground_truth_diagnostics(tmp_path):
     assert summary["policy_action_hashes"] == [
         "paired-candidates",
         "paired-candidates",
+    ]
+    assert summary["policy_action_prefix_hashes"] == [
+        {"2": "paired-prefix"},
+        {"2": "paired-prefix"},
+    ]
+    assert summary["environment_state_hashes"] == [
+        "paired-state",
+        "paired-state",
     ]
 
 

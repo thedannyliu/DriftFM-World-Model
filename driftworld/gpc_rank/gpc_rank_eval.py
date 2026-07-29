@@ -57,7 +57,13 @@ def score_predictions(pred_images, reward_xy, reward_angle, target_pose):
     return np.asarray(rewards)
 
 
-def score_candidate_actions_in_environment(env, actions, end, resize_scale):
+def score_candidate_actions_in_environment(
+        env,
+        actions,
+        end,
+        resize_scale,
+        candidate_steps=0,
+        hold_steps=0):
     """Evaluate action chunks from the current state without changing ``env``."""
     info = env._get_info()
     state = np.concatenate((
@@ -81,11 +87,23 @@ def score_candidate_actions_in_environment(env, actions, end, resize_scale):
         clone.block.velocity = block_velocity
         clone.block.angular_velocity = block_angular_velocity
         candidate_rewards = []
-        for candidate_action in candidate[:end]:
+        num_candidate_steps = (
+            min(candidate_steps, len(candidate))
+            if candidate_steps > 0
+            else min(end, len(candidate))
+        )
+        candidate_actions = candidate[:num_candidate_steps]
+        for candidate_action in candidate_actions:
             _, reward, done, _, _ = clone.step(candidate_action)
             candidate_rewards.append(reward)
             if done:
                 break
+        if candidate_rewards and not done:
+            for _ in range(hold_steps):
+                _, reward, done, _, _ = clone.step(candidate_actions[-1])
+                candidate_rewards.append(reward)
+                if done:
+                    break
         rewards.append(max(candidate_rewards))
         clone.close()
     return np.asarray(rewards)
@@ -154,8 +172,25 @@ def run_gpc_rank(cfg, num_trial, num_parallel, start_number_test, end_number_tes
         "audit_candidate_ground_truth",
         False,
     )
+    audit_max_decisions = int(planning.get("audit_max_decisions", 1))
+    audit_candidate_steps = int(planning.get("audit_candidate_steps", 0))
+    audit_hold_steps = int(planning.get("audit_hold_steps", 0))
+    audit_repeat_ground_truth = planning.get(
+        "audit_repeat_ground_truth",
+        False,
+    )
+    execution_strategy = planning.get("execution_strategy", "gpc_rank")
+    candidate_anchor_count = int(planning.get("candidate_anchor_count", 0))
     if strategy not in {"uniform_breadth", "uniform_depth", "coarse_to_fine"}:
         raise ValueError(f"Unknown planning strategy: {strategy}")
+    if execution_strategy not in {"gpc_rank", "policy_first"}:
+        raise ValueError(f"Unknown execution strategy: {execution_strategy}")
+    if audit_max_decisions < 1:
+        raise ValueError("audit_max_decisions must be positive")
+    if audit_candidate_steps < 0 or audit_hold_steps < 0:
+        raise ValueError("audit step counts must be non-negative")
+    if candidate_anchor_count < 0 or candidate_anchor_count > num_trial:
+        raise ValueError("candidate_anchor_count must be in [0, num_trial]")
     os.makedirs(output_dir, exist_ok=True)
 
     log.info(f"Loading diffusion policy from {cfg.ckpt.policy_checkpoint}")
@@ -231,7 +266,7 @@ def run_gpc_rank(cfg, num_trial, num_parallel, start_number_test, end_number_tes
         rewards = list()
         done = False
         step_idx = 0
-        first_decision_recorded = False
+        num_decisions_recorded = 0
 
         transform = v2.Compose([
             v2.ToImage(),
@@ -276,27 +311,51 @@ def run_gpc_rank(cfg, num_trial, num_parallel, start_number_test, end_number_tes
                     # reshape observation to (B,obs_horizon*obs_dim)
                     obs_cond = obs_features.unsqueeze(0).flatten(start_dim=1)
 
-                    # num_trial sequences of random Gaussian noise
-                    naction = torch.randn((num_trial, pred_horizon, action_dim), device=device)
+                    # On the unranked warm-up decision, a smaller anchored draw
+                    # preserves the RNG state used by an existing smaller-pool
+                    # run. The extra slots are duplicated only for tensor shape;
+                    # they are never ranked on this warm-up decision.
+                    proposal_count = num_trial
+                    if candidate_anchor_count and len(pred_imgs) == 0:
+                        proposal_count = candidate_anchor_count
 
-                    # init scheduler
-                    noise_scheduler.set_timesteps(num_diffusion_iters)
-
-                    # DDPM-style diffusion
-                    for k in noise_scheduler.timesteps:
-                        # predict noise
-                        noise_pred = nets["invariant"](
-                            sample=naction,
-                            timestep=k,
-                            global_cond=obs_cond.repeat(num_trial, 1)
+                    def sample_policy_actions(count):
+                        sampled_action = torch.randn(
+                            (count, pred_horizon, action_dim),
+                            device=device,
                         )
+                        noise_scheduler.set_timesteps(num_diffusion_iters)
+                        for k in noise_scheduler.timesteps:
+                            noise_pred = nets["invariant"](
+                                sample=sampled_action,
+                                timestep=k,
+                                global_cond=obs_cond.repeat(count, 1),
+                            )
+                            sampled_action = noise_scheduler.step(
+                                model_output=noise_pred,
+                                timestep=k,
+                                sample=sampled_action,
+                            ).prev_sample
+                        return sampled_action
 
-                        # inverse diffusion step (remove noise)
-                        naction = noise_scheduler.step(
-                            model_output=noise_pred,
-                            timestep=k,
-                            sample=naction
-                        ).prev_sample
+                    # Keep the anchored prefix in the exact batch shape used by
+                    # the prior smaller-pool run. This makes a bitwise prefix
+                    # hash a meaningful provenance check.
+                    if (
+                        candidate_anchor_count
+                        and proposal_count > candidate_anchor_count
+                    ):
+                        naction = torch.cat(
+                            (
+                                sample_policy_actions(candidate_anchor_count),
+                                sample_policy_actions(
+                                    proposal_count - candidate_anchor_count
+                                ),
+                            ),
+                            dim=0,
+                        )
+                    else:
+                        naction = sample_policy_actions(proposal_count)
 
                     # unnormalize action
                     naction = naction.detach().to('cpu').numpy()
@@ -312,10 +371,21 @@ def run_gpc_rank(cfg, num_trial, num_parallel, start_number_test, end_number_tes
                     last_obs_gt = []
 
                     action = np.swapaxes(action,0,1) # new shape (time, num_trials, action_dim)
-                    action_mean = np.mean(action, axis = 1) # shape (time, action_dim)
+                    anchor_count = (
+                        min(candidate_anchor_count, proposal_count)
+                        if candidate_anchor_count
+                        else proposal_count
+                    )
+                    action_mean = np.mean(
+                        action[:, :anchor_count],
+                        axis=1,
+                    ) # shape (time, action_dim)
                         # action_mean is the average action taken over all num_trial trials
 
-                    action_mean = np.expand_dims(action_mean, axis=1).repeat(num_trial, axis=1)
+                    action_mean = np.expand_dims(action_mean, axis=1).repeat(
+                        proposal_count,
+                        axis=1,
+                    )
                         # shape (time, num_trials, action_dim)
                         # duplicates the mean action num_trial times to match the original shape
 
@@ -323,6 +393,18 @@ def run_gpc_rank(cfg, num_trial, num_parallel, start_number_test, end_number_tes
                     # This artificially spreads out the num_trial candidate trajectories slightly, increasing diversity.
                     action = action_mean + 1.01 * (action - action_mean)
                     action = np.swapaxes(action,0,1) # new shape: (num_trials, time, action_dim)
+                    if proposal_count < num_trial:
+                        action = np.concatenate(
+                            (
+                                action,
+                                np.repeat(
+                                    action[-1:],
+                                    num_trial - proposal_count,
+                                    axis=0,
+                                ),
+                            ),
+                            axis=0,
+                        )
 
                     all_reward_candidate = []
                     coarse_reward_candidate = None
@@ -423,23 +505,71 @@ def run_gpc_rank(cfg, num_trial, num_parallel, start_number_test, end_number_tes
 
                     #### NOTE GPC-RANK: evaluate and rank the num_trial candidate action trajectories that were simulated by the world model
                     if len(all_reward_candidate) > 0: # RANKING STEP
-                        if not first_decision_recorded:
+                        if num_decisions_recorded < audit_max_decisions:
                             ground_truth_candidate_rewards = (
                                 score_candidate_actions_in_environment(
                                     env,
                                     action,
                                     end,
                                     resize_scale,
+                                    audit_candidate_steps,
+                                    audit_hold_steps,
                                 )
                                 if audit_candidate_ground_truth
                                 else None
                             )
+                            repeated_ground_truth_candidate_rewards = (
+                                score_candidate_actions_in_environment(
+                                    env,
+                                    action,
+                                    end,
+                                    resize_scale,
+                                    audit_candidate_steps,
+                                    audit_hold_steps,
+                                )
+                                if (
+                                    audit_candidate_ground_truth
+                                    and audit_repeat_ground_truth
+                                )
+                                else None
+                            )
+                            env_info = env._get_info()
+                            environment_state = np.concatenate((
+                                env_info["pos_agent"],
+                                env_info["block_pose"],
+                                env_info["goal_pose"],
+                                np.asarray(
+                                    tuple(env.agent.velocity),
+                                    dtype=np.float64,
+                                ),
+                                np.asarray(
+                                    tuple(env.block.velocity),
+                                    dtype=np.float64,
+                                ),
+                                np.asarray([env.block.angular_velocity]),
+                            ))
+                            prefix_hashes = {
+                                str(count): hashlib.sha256(
+                                    np.ascontiguousarray(
+                                        action[:count]
+                                    ).tobytes()
+                                ).hexdigest()
+                                for count in (8, 16, 32, 64)
+                                if count <= len(action)
+                            }
                             first_decision_records.append({
                                 "test_index": test_index,
                                 "step_index": step_idx,
+                                "environment_state": environment_state.tolist(),
+                                "environment_state_sha256": hashlib.sha256(
+                                    np.ascontiguousarray(
+                                        environment_state
+                                    ).tobytes()
+                                ).hexdigest(),
                                 "policy_actions_sha256": hashlib.sha256(
                                     np.ascontiguousarray(action).tobytes()
                                 ).hexdigest(),
+                                "policy_action_prefix_sha256": prefix_hashes,
                                 "coarse_candidate_scores": (
                                     coarse_reward_candidate.tolist()
                                     if coarse_reward_candidate is not None
@@ -452,10 +582,27 @@ def run_gpc_rank(cfg, num_trial, num_parallel, start_number_test, end_number_tes
                                     if ground_truth_candidate_rewards is not None
                                     else None
                                 ),
+                                "ground_truth_candidate_rewards_repeat": (
+                                    repeated_ground_truth_candidate_rewards.tolist()
+                                    if repeated_ground_truth_candidate_rewards is not None
+                                    else None
+                                ),
+                                "ground_truth_protocol": {
+                                    "candidate_steps": (
+                                        audit_candidate_steps
+                                        if audit_candidate_steps > 0
+                                        else end
+                                    ),
+                                    "hold_steps": audit_hold_steps,
+                                },
                             })
-                            first_decision_recorded = True
+                            num_decisions_recorded += 1
                         pick_index = np.argsort(all_reward_candidate, kind="stable")[0]
-                        action_pick = action[pick_index][:end] # best sequence
+                        action_pick = (
+                            action[0][:end]
+                            if execution_strategy == "policy_first"
+                            else action[pick_index][:end]
+                        )
                         log.info(all_reward_candidate[pick_index])
                     else:
                         action_pick = action[0][:end]
