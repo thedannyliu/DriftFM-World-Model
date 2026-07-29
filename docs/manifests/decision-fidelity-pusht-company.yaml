@@ -1,0 +1,55 @@
+study: decision-fidelity-pusht-company
+status: frozen-not-launched
+date: 2026-07-29
+execution:
+  environment: company-ngc-container
+  nodes: 2
+  gpus_per_node: 4
+  gpu: H100
+  wandb_project: driftfm-decision-fidelity-pusht-company
+  plan: company/decision_fidelity_pusht_plan.tsv
+  asset_root: /group-volume/danny-dataset/driftworld
+  runtime_root: /user-volume/driftworld
+node_a:
+  stage: N0
+  question: Is 64x1 better than the existing held-out 32x2, and is oracle switching material?
+  trials: 80
+  test_indices: [20, 100]
+  families: [k1-grid25, k32, joint-k16, deep-base-k16]
+  policies: [ep100, ep300]
+  new_arm:
+    proposals: 64
+    nfe: 1
+    candidate_anchor_count: 32
+  comparator:
+    proposals: 32
+    nfe: 2
+    source: unordered-fidelity-confirmation
+  gates:
+    prefix_hashes: exact
+    oracle_switch_iou_upper_ci_min: 0.01
+node_b:
+  stage: N1-infrastructure-smoke
+  paper_evidence: false
+  question: Are later-state cloned candidate utilities paired, deterministic, and non-degenerate?
+  trials: 16
+  test_indices: [100, 116]
+  family: k32
+  policies: [ep100, ep300]
+  proposals: 16
+  nfe: [1, 4]
+  execution_strategy: policy_first
+  audits_per_episode: 4
+  candidate_steps: 15
+  hold_steps: 16
+  repeat_ground_truth: true
+  gates:
+    state_and_candidate_hashes: exact
+    clone_repeat_max_abs_error: 0
+    nondegenerate_fraction_min: 0.9
+    expand_win_fraction_min: 0.1
+    refine_win_fraction_min: 0.1
+result_contract:
+  immutable_result_file: docs/results/YYYY-MM-DD-decision-fidelity-pusht-company.md
+  failure_is_valid: true
+  smoke_must_not_merge_with_formal_n1: true

@@ -79,6 +79,38 @@ DRIFTFLOWWORLD_SKIP_ASSETS=1 bash company/setup.sh
 Set `WANDB_API_KEY` through the company secret manager. Optionally set
 `WANDB_ENTITY` and `WANDB_PROJECT`; credentials are never written by these scripts.
 
+## Two-node Push-T decision-fidelity gates
+
+The frozen N0 and N1-smoke protocol is documented in
+`docs/decision-fidelity-pusht-company-runbook.md` and versioned in
+`docs/manifests/decision-fidelity-pusht-company.yaml`. On each fresh node, install
+and verify its active container independently:
+
+```bash
+bash company/setup_decision_fidelity_node.sh node-a  # first 4xH100 node
+bash company/setup_decision_fidelity_node.sh node-b  # second 4xH100 node
+```
+
+The setup logs are hostname-specific. Existing shared assets are reused; Node B
+will not start a concurrent asset repair if the shared asset check fails. After
+W&B login, print and launch the respective resumable queue:
+
+```bash
+bash company/run_decision_fidelity_pusht.sh node-a --print-plan
+bash company/run_decision_fidelity_pusht.sh node-a
+
+bash company/run_decision_fidelity_pusht.sh node-b --print-plan
+bash company/run_decision_fidelity_pusht.sh node-b
+```
+
+Node A runs the eight held-out N0 `64x1` rows. Node B runs only the four-row
+later-state label mechanism smoke; those rows are not paper evidence. Compact
+shared status and frozen gate calculations are printed with:
+
+```bash
+python3 company/status_decision_fidelity_pusht.py all
+```
+
 ## Two independent 4xH100 nodes
 
 Diagnose four-GPU checkpoint/resume numerical equivalence on one node. A bitwise

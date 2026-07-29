@@ -114,6 +114,9 @@ Research documentation lives under `docs/`:
 - `docs/decision-fidelity-experiments.md`: mandatory staged experiments that test
   the proof assumptions and conjectures, with theorem-to-evidence traceability
   and continue/narrow/stop gates.
+- `docs/decision-fidelity-pusht-company-runbook.md`: frozen two-node company
+  allocation for the Push-T N0 gate and N1 label smoke, including fresh-container
+  setup, candidate/state pairing requirements, and result-recording rules.
 - `docs/research-protocol.md`: locked claims, gates, and evaluation protocol.
 - `docs/advantage-aligned-transport-hypotheses.md`: historical post-PoC mechanism
   hypotheses, falsifiers, diagnostic gates, and company commands.
