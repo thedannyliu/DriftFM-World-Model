@@ -138,6 +138,28 @@ regret. Secondary metrics are success fraction, wall-clock planning latency, top
 margin, coarse-to-final winner flips, and per-trial outcomes. LPIPS alone never
 decides a planning claim.
 
+## Interim result: Node C candidate racing
+
+Node C has completed 15/16 equal-nominal-budget rows. The immutable result, exact W&B
+IDs, paired intervals, and provenance are recorded in the
+[2026-07-29 Node C snapshot](results/2026-07-29-unordered-fidelity-node-c-partial.md).
+The joint-k16 top-eighth/NFE8 row is missing, so this remains a partial result.
+
+The tested static coarse-to-fine racing baseline does not pass the H3 gate:
+
+- refining half of 16 candidates to NFE 2 changes mean IoU by
+  `0.00000/+0.00289/-0.00065/+0.00007` for
+  k1/k32/joint/deep, but costs 6.2--6.6% more latency than fixed 16x2;
+- top-quarter/NFE4 and top-eighth/NFE8 usually reduce paired IoU and cost about
+  14% and 40--42% more latency; k32 is significantly worse for both;
+- the coarse-to-final winner changes in zero of 20 trials for most rows and one of 20
+  at most, so refinement rarely changes the selected action.
+
+The bounded conclusion is that fixed-initial-breadth, deeper-on-fewer-candidates
+racing is not useful here. This does not establish that adaptive compute is useless:
+Node B must determine whether NFE1 is better used to evaluate more candidates, while
+Node A must measure whether depth preserves ground-truth candidate ranking.
+
 ## Decision after this wave
 
 1. If Node A is monotonic and Node B favors depth across families, reject H1 and stop
