@@ -199,6 +199,11 @@ def main():
         },
         "candidate_diagnostics": decision_summary(decisions),
     }
+    if any(
+        decision.get("ground_truth_candidate_rewards") is not None
+        for decision in decisions
+    ):
+        result["candidate_audit_records"] = decisions
 
     if args.wandb_project:
         import wandb
@@ -214,7 +219,12 @@ def main():
         run.finish()
 
     write_atomic(args.output, result)
-    print(json.dumps(result, separators=(",", ":")))
+    terminal_result = dict(result)
+    if "candidate_audit_records" in terminal_result:
+        terminal_result["candidate_audit_records"] = (
+            f"{len(decisions)} records retained in marker"
+        )
+    print(json.dumps(terminal_result, separators=(",", ":")))
 
 
 if __name__ == "__main__":

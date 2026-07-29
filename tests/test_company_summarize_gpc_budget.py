@@ -61,6 +61,41 @@ def test_load_shards_and_ground_truth_diagnostics(tmp_path):
     ]
 
 
+def test_main_preserves_ground_truth_audit_records(tmp_path, monkeypatch):
+    decisions = [{
+        "test_index": 20,
+        "policy_actions_sha256": "paired-candidates",
+        "final_candidate_scores": [0.1, 0.2],
+        "ground_truth_candidate_rewards": [0.8, 0.4],
+    }]
+    output_dir = tmp_path / "raw"
+    write_shard(output_dir, 20, 22, [0.8, 0.9], decisions)
+    write_shard(output_dir, 22, 24, [0.7, 1.0], decisions)
+    output = tmp_path / "marker.json"
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "summarize_gpc_budget.py",
+            "--name", "audit",
+            "--family", "test",
+            "--policy", "ep100",
+            "--strategy", "uniform_depth",
+            "--num-proposals", "2",
+            "--nfe", "1",
+            "--refine-nfe", "1",
+            "--refine-ratio", "0",
+            "--expected-seeds", "4",
+            "--output-dir", str(output_dir),
+            "--output", str(output),
+        ],
+    )
+
+    MODULE.main()
+
+    marker = json.loads(output.read_text())
+    assert marker["candidate_audit_records"] == decisions * 2
+
+
 def test_constant_ground_truth_does_not_emit_nan_correlation():
     summary = MODULE.decision_summary([{
         "policy_actions_sha256": "constant-ground-truth",

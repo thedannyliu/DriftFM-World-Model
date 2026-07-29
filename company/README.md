@@ -440,6 +440,35 @@ four, and a completed row marker fixes the trial count for that row. The hypothe
 prior-work boundary, falsifiers, and follow-up decision gates are documented in
 `docs/unordered-generative-fidelity.md`.
 
+### Four-node held-out NFE confirmation
+
+The discovery wave leaves one row missing and shows that the immediate
+first-decision candidate reward is constant in 11/20 states. Do not scale that
+mechanism metric. The confirmatory wave instead uses untouched environment indices
+20--99 for paired full-episode IoU. Each node owns one frozen world-model family and
+runs fixed 32 candidates at NFE 1/2/4/8, first with ep100 and then with ep300:
+
+```bash
+bash company/run_unordered_confirmation_queue.sh node-a
+bash company/run_unordered_confirmation_queue.sh node-b
+bash company/run_unordered_confirmation_queue.sh node-c
+bash company/run_unordered_confirmation_queue.sh node-d
+```
+
+The queue is resumable by shared atomic row markers, retains compact per-state
+candidate audit records in each marker, and logs summaries to
+`driftfm-unordered-fidelity-confirmation-company`. Inspect without GPUs with:
+
+```bash
+bash company/run_unordered_confirmation_queue.sh node-a --print-plan
+python3 company/status_unordered_confirmation.py all
+```
+
+The locked manifest is
+`docs/manifests/unordered-fidelity-confirmation.yaml`. Ep100 is the primary held-out
+test; ep300 is a policy-shift replication. These rows test the task-level ordering
+claim, not the failed immediate-reward mechanism.
+
 Post-training holds out episodes 490–499 from each 500-episode domain and evaluates 16
 fixed adaptation-validation batches every 500 updates. The released parent may have
 already seen these episodes, so this detects post-training overfit but is not an unseen
