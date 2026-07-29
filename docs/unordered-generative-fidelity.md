@@ -1,7 +1,8 @@
 # Unordered generative fidelity for decision-time planning
 
-Status: active hypothesis, 2026-07-28. The current experiment wave is a Push-T
-discovery study over frozen checkpoints. It is not yet a cross-task paper claim.
+Status: Push-T discovery and held-out confirmation complete, 2026-07-29. The
+evidence rejects using NFE as a guaranteed decision-fidelity ladder, but does not
+yet establish a cross-task phenomenon or a useful allocator.
 
 ## One-sentence research question
 
@@ -240,19 +241,42 @@ Winner flips rise to 5--15% under ep300 but do not improve mean IoU. The current
 evidence therefore rejects this static racing rule across both tested policies; it
 does not yet reject an allocator driven by a separately validated decision signal.
 
-## Decision after this wave
+## Held-out result: fixed-candidate confirmation
 
-1. Node B favors breadth descriptively across all four selected families; treat 64x1
-   and 32x2 as the mandatory static Pareto baselines.
-2. If Node A is monotonic, reject H1 and stop adaptive-fidelity work even though
-   breadth is the better allocation in this Push-T discovery set.
-3. If Node A is non-monotonic but no allocator can beat the best static strategy, retain
-   the diagnostic result but do not claim an allocator.
-4. Nodes A/B/C/D each have one missing row. Complete them for protocol closure, but
-   do not scale the current static allocator.
-5. Node A's immediate first-decision audit is too sparse to provide a gate signal.
-   Confirm the full-episode NFE effect on held-out indices, but do not train an
-   allocator from the current rank/regret summaries.
-6. Only a redesigned later-state or longer-horizon audit can justify a learned gate,
-   DFM-policy contrast, and second task such as Robomimic. No additional 300k/400k
-   Push-T training is justified by the present evidence.
+The preregistered confirmation completed all 32 rows: four selected world-model
+families × two proposal policies × NFE `1/2/4/8`, with 80 untouched Push-T
+indices per row and fixed 32-candidate sets. Exact values and provenance are in the
+[2026-07-29 confirmation snapshot](results/2026-07-29-unordered-fidelity-confirmation.md).
+
+The result changes the interpretation of the discovery:
+
+- the k1 ep100 NFE4 discovery gain of `+.09600` does not replicate; the held-out
+  effect is `-.0089 [-.0484,+.0301]`;
+- all eight point curves are descriptively non-monotone, but 23/24 paired
+  NFE-versus-NFE1 intervals include zero;
+- ep100 family-average IoU decreases from `.717775` at NFE1 to `.708625` at
+  NFE8, whereas ep300 increases from `.571975` to `.592325`;
+- latency rises approximately `1.00x/1.88x/3.65x/7.21x` for NFE
+  `1/2/4/8`.
+
+The defensible claim is not that higher NFE generally hurts. It is that additional
+depth has no reliable universal positive decision return and therefore cannot be
+treated as an a priori fidelity order in this planner. The single unadjusted
+k1/ep300 NFE4 interval above zero is insufficient for a universal positive claim.
+
+## Decision after confirmation
+
+1. Replace **unordered fidelity** with the more conservative term **untrusted
+   decision fidelity** until true candidate utilities show sign-changing depth
+   value across tasks.
+2. Treat `64×1` and `32×2` as mandatory static baselines, but confirm their
+   breadth comparison on the untouched 80 indices before building a method.
+3. Do not train a router from raw top-two margin or the sparse first-decision
+   reward audit.
+4. Build a later-state, longer-horizon counterfactual candidate dataset that
+   separates proposal coverage regret from world-model selection regret.
+5. Require released Robomimic Lift/Can and a second generative world-model family
+   before making a general claim.
+6. Stop more 300k/400k Push-T post-training and static top-fraction racing. The
+   next work is bounded by the gates in
+   [`oral-paper-blueprint.md`](oral-paper-blueprint.md).

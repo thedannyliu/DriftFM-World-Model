@@ -1,7 +1,9 @@
 name: unordered-generative-fidelity-heldout-confirmation-v1
 date: 2026-07-29
-status: ready
+status: complete
 task: PushT
+code_commit: 41938d7e481453ccc2199d90c7171a5b97fb327f
+result_snapshot: docs/results/2026-07-29-unordered-fidelity-confirmation.md
 hypothesis:
   primary: fixed-candidate NFE effects are family-dependent and not an ordered fidelity ladder
   replication: the ordering conclusion survives the ep100-to-ep300 policy shift
@@ -58,3 +60,11 @@ caveats:
   - PushT-only
   - four selected checkpoints are not independent task replications
   - first-decision audit is retained for diagnostics but cannot establish mechanism
+outcome:
+  completed_rows: 32
+  total_rows: 32
+  paired_contrasts_including_zero: 23
+  paired_contrasts_total: 24
+  discovery_k1_nfe4_delta_iou: 0.096
+  heldout_k1_nfe4_delta_iou: -0.0089
+  decision: NFE is not a trustworthy universal decision-fidelity order

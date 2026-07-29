@@ -1,5 +1,10 @@
 可以。這個研究不應只做成「把 DriftWorld 的 drifting loss 換成 Drift Flow Matching」，那樣方法貢獻偏弱。較完整、可驗證的研究主題應是：
 
+> **歷史文件（2026-07-29 更新）：** 後續 held-out 實驗不支持把 NFE
+> 當成可靠的單調 fidelity ladder；以下原始 proposal 保留作為研究軌跡，
+> 不再是目前論文主張。請以
+> [`oral-paper-blueprint.md`](oral-paper-blueprint.md) 為最新方向。
+
 # DriftFlowWorld
 
 ## Test-Time Scalable World Models with Motion-Gated NFE Advantage Distillation

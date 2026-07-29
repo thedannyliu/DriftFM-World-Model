@@ -105,11 +105,14 @@ Focus on TOP AI venue's best papers' criteria, do mearningful work. Have researc
 
 Research documentation lives under `docs/`:
 
+- `docs/oral-paper-blueprint.md`: current paper thesis, evidence ledger, formal
+  regret decomposition, closest-work boundary, required experiments, and kill
+  criteria. This is the first document to read for new research direction.
 - `docs/research-protocol.md`: locked claims, gates, and evaluation protocol.
-- `docs/advantage-aligned-transport-hypotheses.md`: current post-PoC mechanism
+- `docs/advantage-aligned-transport-hypotheses.md`: historical post-PoC mechanism
   hypotheses, falsifiers, diagnostic gates, and company commands.
-- `docs/unordered-generative-fidelity.md`: active decision-level hypothesis, closest
-  prior work, falsifiers, and four-node fixed-budget planning protocol.
+- `docs/unordered-generative-fidelity.md`: completed Push-T decision-level
+  discovery, held-out conclusion, falsifiers, and fixed-budget planning protocol.
 - `docs/literature-review.md`: concise related-work and novelty audit.
 - `docs/experiments.md`: append-only hypothesis/experiment/result tables.
 - `docs/results/`: dated metric snapshots and research decisions; interim reports

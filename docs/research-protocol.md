@@ -1,5 +1,10 @@
 # Push-T research protocol
 
+> Historical protocol. Its transport and planning gates remain part of the audit
+> trail, but the completed held-out result invalidates monotone NFE scaling as the
+> current paper premise. Read
+> [`oral-paper-blueprint.md`](oral-paper-blueprint.md) for the active direction.
+
 ## Question and primary claim
 
 Can an endpoint-compatible Drift Flow Matching world model allocate a fixed inference
