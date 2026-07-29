@@ -65,3 +65,9 @@ progress:
     missing:
       - c-joint-race-eighth8
     snapshot: docs/results/2026-07-29-unordered-fidelity-node-c-partial.md
+  node_d:
+    completed_rows: 15
+    planned_rows: 16
+    missing:
+      - d-deep-ep300-32x1
+    snapshot: docs/results/2026-07-29-unordered-fidelity-node-d-partial.md

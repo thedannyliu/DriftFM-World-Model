@@ -160,14 +160,35 @@ racing is not useful here. This does not establish that adaptive compute is usel
 Node B must determine whether NFE1 is better used to evaluate more candidates, while
 Node A must measure whether depth preserves ground-truth candidate ranking.
 
+## Interim result: Node D policy shift
+
+Node D has completed 15/16 ep300 rows. Exact per-row W&B IDs, paired intervals, and
+policy-interaction estimates are in the
+[2026-07-29 Node D snapshot](results/2026-07-29-unordered-fidelity-node-d-partial.md).
+The deep-base 32-candidate/NFE1 row is missing.
+
+The ep300 policy does not rescue static racing:
+
+- racing-minus-fixed paired ΔIoU is
+  `+.00048/-.01395/-.01538/-.00828` for k1/k32/joint/deep; every interval includes
+  zero while latency increases by 13.2--15.3%;
+- 8-candidate/NFE4 is worse on average in all families and conclusively worse for
+  k32 (`-.06891`, 95% CI `[-.14413,-.00293]`);
+- all seven available ep100-to-ep300 allocation-interaction intervals include zero.
+
+Winner flips rise to 5--15% under ep300 but do not improve mean IoU. The current
+evidence therefore rejects this static racing rule across both tested policies; it
+does not yet reject an allocator driven by a separately validated decision signal.
+
 ## Decision after this wave
 
 1. If Node A is monotonic and Node B favors depth across families, reject H1 and stop
    adaptive-fidelity work.
 2. If Node A is non-monotonic but Node C cannot beat the best static strategy, retain
    the diagnostic result but do not claim an allocator.
-3. If Node C wins on ep100 but Node D fails, study policy-distribution shift rather
-   than scaling the experiment.
-4. Only after H1--H3 survive should the next compute go to a learned gate, DFM-policy
+3. Node C and Node D both fail to show a static racing gain. Complete their one
+   missing row each for protocol closure, but do not scale this allocator.
+4. Only if Nodes A/B reveal a reproducible decision signal should the next compute go
+   to a held-out learned gate, DFM-policy
    contrast, and a second task such as Robomimic. No additional 300k/400k Push-T
    training is justified by the present evidence.
