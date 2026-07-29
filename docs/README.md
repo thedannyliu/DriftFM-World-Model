@@ -34,3 +34,5 @@ The earlier 8/16 diagnostic is retained as
 [`results/2026-07-28-hypothesis-audit-partial.md`](results/2026-07-28-hypothesis-audit-partial.md).
 The current 15/16 equal-budget candidate-racing result is
 [`results/2026-07-29-unordered-fidelity-node-c-partial.md`](results/2026-07-29-unordered-fidelity-node-c-partial.md).
+The current 15/16 ep300 policy-shift result is
+[`results/2026-07-29-unordered-fidelity-node-d-partial.md`](results/2026-07-29-unordered-fidelity-node-d-partial.md).
