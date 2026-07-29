@@ -160,6 +160,36 @@ racing is not useful here. This does not establish that adaptive compute is usel
 Node B must determine whether NFE1 is better used to evaluate more candidates, while
 Node A must measure whether depth preserves ground-truth candidate ranking.
 
+## Interim result: Node B breadth-depth frontier
+
+Node B has completed 15/16 equal-nominal-budget rows. Exact per-row W&B IDs, paired
+intervals, latency, margins, and provenance are in the
+[2026-07-29 Node B snapshot](results/2026-07-29-unordered-fidelity-node-b-partial.md).
+The joint-k16 16-candidate/NFE4 row is missing.
+
+At 64 nominal model evaluations, proposal breadth is the descriptive winner:
+
+- 64x1 has the highest mean IoU in all four selected model families; its
+  family-average IoU is `.77586`, versus `.75077` for 32x2 and `.70148` for 8x8;
+- 64x1-minus-32x2 is positive in all four families
+  (`+.00819/+.02394/+.02888/+.03934`), but every family-level 20-trial interval
+  still crosses zero;
+- only 64x1 and 32x2 remain on the latency/IoU Pareto frontier. The quality gain of
+  64x1 costs about 5.8--6.3% measured latency, while 16x4 and 8x8 are dominated.
+
+The result also invalidates raw top-two score margin as a cross-allocation confidence
+signal. Mean margin rises from `.1091` at 64x1 to `.2580` at 8x8 while mean IoU
+falls by `.0744`; across all 15 rows the descriptive correlation is `-.799`. This is
+consistent with candidate-count-dependent order statistics rather than trustworthy
+confidence.
+
+Together with Nodes C/D, Node B rejects the tested static “refine fewer candidates
+more deeply” strategy. The remaining scientific question is narrower: whether Node A
+shows candidate-conditional ranking errors that explain why breadth wins and support
+a calibrated, allocation-aware signal. Without that mechanism and cross-task
+replication, the Node B result is a strong systems baseline rather than a novel
+paper claim.
+
 ## Interim result: Node D policy shift
 
 Node D has completed 15/16 ep300 rows. Exact per-row W&B IDs, paired intervals, and
@@ -182,13 +212,15 @@ does not yet reject an allocator driven by a separately validated decision signa
 
 ## Decision after this wave
 
-1. If Node A is monotonic and Node B favors depth across families, reject H1 and stop
-   adaptive-fidelity work.
-2. If Node A is non-monotonic but Node C cannot beat the best static strategy, retain
+1. Node B favors breadth descriptively across all four selected families; treat 64x1
+   and 32x2 as the mandatory static Pareto baselines.
+2. If Node A is monotonic, reject H1 and stop adaptive-fidelity work even though
+   breadth is the better allocation in this Push-T discovery set.
+3. If Node A is non-monotonic but no allocator can beat the best static strategy, retain
    the diagnostic result but do not claim an allocator.
-3. Node C and Node D both fail to show a static racing gain. Complete their one
-   missing row each for protocol closure, but do not scale this allocator.
-4. Only if Nodes A/B reveal a reproducible decision signal should the next compute go
+4. Nodes B/C/D each have one missing row. Complete them for protocol closure, but do
+   not scale the current static allocator.
+5. Only if Node A reveals a reproducible decision signal should the next compute go
    to a held-out learned gate, DFM-policy
    contrast, and a second task such as Robomimic. No additional 300k/400k Push-T
    training is justified by the present evidence.

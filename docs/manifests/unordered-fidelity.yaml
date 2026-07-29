@@ -59,6 +59,12 @@ statistics:
   interval: paired_bootstrap_95
   discovery_warning: PushT-only; cross-task confirmation required
 progress:
+  node_b:
+    completed_rows: 15
+    planned_rows: 16
+    missing:
+      - b-joint-budget-16x4
+    snapshot: docs/results/2026-07-29-unordered-fidelity-node-b-partial.md
   node_c:
     completed_rows: 15
     planned_rows: 16
