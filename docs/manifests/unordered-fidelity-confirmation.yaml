@@ -1,0 +1,60 @@
+name: unordered-generative-fidelity-heldout-confirmation-v1
+date: 2026-07-29
+status: ready
+task: PushT
+hypothesis:
+  primary: fixed-candidate NFE effects are family-dependent and not an ordered fidelity ladder
+  replication: the ordering conclusion survives the ep100-to-ep300 policy shift
+hardware:
+  nodes: 4
+  gpus_per_node: 4
+  gpu: H100
+execution:
+  company_plan: company/unordered_confirmation_plan.tsv
+  company_queue: company/run_unordered_confirmation_queue.sh
+  trials_per_row: 80
+  trial_indices: [20, 99]
+  shard_count: 4
+  shared_completion_marker: gpc-unordered-{row_name}.json
+  wandb_project: driftfm-unordered-fidelity-confirmation-company
+  checkpoint_retention: frozen-no-new-checkpoints
+policies:
+  primary: ep100
+  replication: ep300
+  proposal_rng_base_seed: 5
+world_model_allocation:
+  node-a: k1-grid25
+  node-b: k32
+  node-c: joint-k16
+  node-d: deep-base-k16
+comparison:
+  candidates: 32
+  nfes: [1, 2, 4, 8]
+  paired:
+    - environment_index
+    - policy_candidate_actions
+metrics:
+  primary: paired_episode_max_iou
+  secondary:
+    - success_fraction_at_0.95
+    - planning_latency
+    - first_decision_rank_correlation
+    - first_decision_selection_regret
+    - first_decision_oracle_selection
+statistics:
+  unit: environment_test_index
+  interval: paired_bootstrap_95
+  primary_split: ep100 indices 20-99
+  replication_split: ep300 indices 20-99
+  multiplicity: report all family-by-NFE effects; no pooled selected-checkpoint p-value
+gates:
+  ordered_fidelity:
+    pass: paired task outcome improves monotonically with NFE in every family and both policies
+    fail: the best depth differs by family/policy or a higher NFE has a reproducible negative paired effect
+  mechanism:
+    status: not tested by this confirmation
+    reason: first-decision immediate reward is constant for 11 of 20 discovery states
+caveats:
+  - PushT-only
+  - four selected checkpoints are not independent task replications
+  - first-decision audit is retained for diagnostics but cannot establish mechanism

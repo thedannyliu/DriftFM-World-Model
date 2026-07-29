@@ -138,6 +138,36 @@ regret. Secondary metrics are success fraction, wall-clock planning latency, top
 margin, coarse-to-final winner flips, and per-trial outcomes. LPIPS alone never
 decides a planning claim.
 
+## Interim result: Node A fixed candidates
+
+Node A has completed 15/16 fixed-32-candidate rows. Exact W&B IDs, paired intervals,
+raw audit findings, and provenance are in the
+[2026-07-29 Node A snapshot](results/2026-07-29-unordered-fidelity-node-a-partial.md).
+The k1-grid25 NFE8 row is missing.
+
+Full-episode NFE effects are family-dependent:
+
+- k1 improves by `+.07473/+.09600` IoU at NFE2/4 versus NFE1, and both paired
+  20-trial intervals exclude zero;
+- k32 trends from `-.01564` at NFE2 to `+.02309` at NFE8, with all intervals
+  crossing zero;
+- joint peaks descriptively at NFE2 and falls below NFE1 at NFE8;
+- deep peaks descriptively at NFE4 and rebounds downward at NFE8.
+
+This is compatible with unordered, checkpoint-dependent useful depth, but 20 trials
+are underpowered outside k1. It also does not yet provide the mechanism originally
+assigned to Node A. The first-decision simulator target has zero candidate variance
+in 11/20 states, so rank correlation is defined on only nine states. Joint/deep
+selection regret is identical across all NFE even though full-episode IoU changes.
+The immediate first-action-chunk audit therefore cannot explain the episode result
+and must not be used to train a gate.
+
+The fixed-candidate task result and Node B agree on the practical compute decision:
+high NFE can help a selected family, but 64x1 breadth matches or exceeds the observed
+high-depth IoU at much lower latency. The next wave confirms full-episode NFE effects
+on untouched indices 20--99 and across ep100/ep300; a later mechanism study must use
+common later-episode states or longer-horizon counterfactual return.
+
 ## Interim result: Node C candidate racing
 
 Node C has completed 15/16 equal-nominal-budget rows. The immutable result, exact W&B
@@ -218,9 +248,11 @@ does not yet reject an allocator driven by a separately validated decision signa
    breadth is the better allocation in this Push-T discovery set.
 3. If Node A is non-monotonic but no allocator can beat the best static strategy, retain
    the diagnostic result but do not claim an allocator.
-4. Nodes B/C/D each have one missing row. Complete them for protocol closure, but do
-   not scale the current static allocator.
-5. Only if Node A reveals a reproducible decision signal should the next compute go
-   to a held-out learned gate, DFM-policy
-   contrast, and a second task such as Robomimic. No additional 300k/400k Push-T
-   training is justified by the present evidence.
+4. Nodes A/B/C/D each have one missing row. Complete them for protocol closure, but
+   do not scale the current static allocator.
+5. Node A's immediate first-decision audit is too sparse to provide a gate signal.
+   Confirm the full-episode NFE effect on held-out indices, but do not train an
+   allocator from the current rank/regret summaries.
+6. Only a redesigned later-state or longer-horizon audit can justify a learned gate,
+   DFM-policy contrast, and second task such as Robomimic. No additional 300k/400k
+   Push-T training is justified by the present evidence.
