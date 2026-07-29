@@ -42,12 +42,17 @@ ASSET_ROOT=${DRIFTFLOWWORLD_ASSET_ROOT:-/group-volume/danny-dataset/driftworld}
 RUNTIME_ROOT=${DRIFTFLOWWORLD_RUNTIME_ROOT:-/user-volume/driftworld}
 PYTHON_BIN=${PYTHON_BIN:-python3}
 NUM_TRIALS=${GPC_NUM_TRIALS:-20}
+TRIAL_OFFSET=${GPC_TRIAL_OFFSET:-0}
 POLICY_SEED=${GPC_POLICY_SEED:-5}
 WANDB_PROJECT=${WANDB_PROJECT:-driftfm-unordered-fidelity-company}
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 
 if (( NUM_TRIALS < 4 || NUM_TRIALS % 4 != 0 )); then
     echo "GPC_NUM_TRIALS must be a positive multiple of four" >&2
+    exit 2
+fi
+if [[ ! ${TRIAL_OFFSET} =~ ^[0-9]+$ ]]; then
+    echo "GPC_TRIAL_OFFSET must be a non-negative integer" >&2
     exit 2
 fi
 if [[ ! ${POLICY_SEED} =~ ^[0-9]+$ ]]; then
@@ -107,6 +112,7 @@ fi
 
 echo "[gpc-budget] name=${NAME} family=${FAMILY} policy=${POLICY} strategy=${STRATEGY}"
 echo "[gpc-budget] proposals=${PROPOSALS} parallel=${NUM_PARALLEL} nfe=${NFE} refine_nfe=${REFINE_NFE} refine_ratio=${REFINE_RATIO} trials=${NUM_TRIALS}"
+echo "[gpc-budget] trial_range=${TRIAL_OFFSET}:$((TRIAL_OFFSET + NUM_TRIALS))"
 echo "[gpc-budget] checkpoint=${WORLD_CHECKPOINT} policy_checkpoint=${POLICY_CHECKPOINT} policy_loader=monolithic policy_seed=${POLICY_SEED}"
 echo "[gpc-budget] candidate_ground_truth=${AUDIT_CANDIDATES} logs=${LOG_DIR}"
 
@@ -114,7 +120,7 @@ PIDS=()
 NAMES=()
 cd "${REPO_ROOT}/driftworld"
 for GPU in 0 1 2 3; do
-    START=$((GPU * SHARD_SIZE))
+    START=$((TRIAL_OFFSET + GPU * SHARD_SIZE))
     END=$((START + SHARD_SIZE))
     SHARD_DIR=${OUTPUT_DIR}/num_trial_${PROPOSALS}_seeds_${START}_${END}
     FINAL=${SHARD_DIR}/final_corrected_sampling_based_testing_no_simulation_planning_receding_result_from_index_f${START}.npy
