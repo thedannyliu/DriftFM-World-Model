@@ -108,6 +108,12 @@ Research documentation lives under `docs/`:
 - `docs/oral-paper-blueprint.md`: current paper thesis, evidence ledger, formal
   regret decomposition, closest-work boundary, required experiments, and kill
   criteria. This is the first document to read for new research direction.
+- `docs/decision-fidelity-theory.md`: mathematical proof audit with explicit
+  proved, conditional, conjectured, refuted, and open statements; failed proof
+  attempts are retained as research outcomes.
+- `docs/decision-fidelity-experiments.md`: mandatory staged experiments that test
+  the proof assumptions and conjectures, with theorem-to-evidence traceability
+  and continue/narrow/stop gates.
 - `docs/research-protocol.md`: locked claims, gates, and evaluation protocol.
 - `docs/advantage-aligned-transport-hypotheses.md`: historical post-PoC mechanism
   hypotheses, falsifiers, diagnostic gates, and company commands.

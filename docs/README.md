@@ -7,19 +7,24 @@ order:
 
 1. [`oral-paper-blueprint.md`](oral-paper-blueprint.md) is the current paper thesis,
    evidence ledger, method boundary, required experiments, and kill criteria.
-2. [`unordered-generative-fidelity.md`](unordered-generative-fidelity.md) records the
+2. [`decision-fidelity-theory.md`](decision-fidelity-theory.md) is the proof audit:
+   proved statements, conditional guarantees, counterexamples, open claims, and
+   failed proof attempts.
+3. [`decision-fidelity-experiments.md`](decision-fidelity-experiments.md) maps those
+   claims to staged mandatory experiments and explicit continue/narrow/stop gates.
+4. [`unordered-generative-fidelity.md`](unordered-generative-fidelity.md) records the
    completed Push-T decision-level discovery and held-out conclusion.
-3. [`literature-review.md`](literature-review.md) separates established top-venue
+5. [`literature-review.md`](literature-review.md) separates established top-venue
    results from current preprints and locks the novelty boundary.
-4. [`research-protocol.md`](research-protocol.md) preserves the earlier
+6. [`research-protocol.md`](research-protocol.md) preserves the earlier
    DriftFlowWorld comparison and its historical gates.
-5. [`advantage-aligned-transport-hypotheses.md`](advantage-aligned-transport-hypotheses.md)
+7. [`advantage-aligned-transport-hypotheses.md`](advantage-aligned-transport-hypotheses.md)
    preserves the post-PoC mechanism hypotheses and diagnostic gates.
-6. [`experiments.md`](experiments.md) records hypotheses, jobs, metrics, and decisions.
-7. [`results/`](results/) contains dated, immutable experiment snapshots and analysis.
-8. [`weekend-research-plan.md`](weekend-research-plan.md) defines the earlier
+8. [`experiments.md`](experiments.md) records hypotheses, jobs, metrics, and decisions.
+9. [`results/`](results/) contains dated, immutable experiment snapshots and analysis.
+10. [`weekend-research-plan.md`](weekend-research-plan.md) defines the earlier
    four-node aggressive follow-up.
-9. [`research-idea.md`](research-idea.md) preserves the original broader proposal.
+11. [`research-idea.md`](research-idea.md) preserves the original broader proposal.
 
 Each experiment table answers one question. Every run records the task, seed,
 manifest, GPU, code commit, parent/output checkpoint, W&B project and run ID, metrics,

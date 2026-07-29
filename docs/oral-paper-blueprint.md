@@ -77,6 +77,11 @@ already too incremental or already established.
 
 ## Formal problem
 
+The complete proof audit, including failed proof attempts and explicit
+`proved/conditional/conjecture/refuted` labels, is in
+[`decision-fidelity-theory.md`](decision-fidelity-theory.md). The summary below
+must not be cited as a stronger theorem than that document establishes.
+
 At decision state `x`, draw `B` candidate action chunks
 `a_1,...,a_B ~ pi(.|x)`. Let `U_x(a)` be the true continuation utility, and let
 `U_hat_{x,d}(a)` be the utility estimated from a generative world model at
@@ -201,6 +206,11 @@ The full citation and venue audit is in
 [`literature-review.md`](literature-review.md).
 
 ## Required experiments
+
+The frozen staged specification, exact falsifiers, and theorem-to-experiment
+traceability table are in
+[`decision-fidelity-experiments.md`](decision-fidelity-experiments.md). The
+following section is the paper-level summary.
 
 ### E0 — Close the remaining breadth question
 
