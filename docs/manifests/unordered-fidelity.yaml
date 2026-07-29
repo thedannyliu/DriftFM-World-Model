@@ -1,6 +1,6 @@
 name: unordered-generative-fidelity-pusht-v1
 date: 2026-07-28
-status: planned
+status: running
 task: PushT
 hardware:
   nodes: 4
@@ -58,3 +58,10 @@ statistics:
   unit: environment_test_seed
   interval: paired_bootstrap_95
   discovery_warning: PushT-only; cross-task confirmation required
+progress:
+  node_c:
+    completed_rows: 15
+    planned_rows: 16
+    missing:
+      - c-joint-race-eighth8
+    snapshot: docs/results/2026-07-29-unordered-fidelity-node-c-partial.md
