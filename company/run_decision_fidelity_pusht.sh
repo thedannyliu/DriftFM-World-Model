@@ -44,8 +44,24 @@ if [[ -z ${WANDB_API_KEY:-} && ( -z ${HOME:-} || ! -f ${HOME}/.netrc ) ]]; then
     echo "W&B credentials not found; run 'wandb login --relogin' first" >&2
     exit 1
 fi
-python3 -c \
-    'import cv2, importlib.metadata, pymunk, torch, wandb; assert hasattr(pymunk.Space, "on_collision"), "Pymunk 7 API is required"; assert torch.cuda.device_count() == 4, torch.cuda.device_count(); print(f"[decision-fidelity] preflight=pass torch={torch.__version__} opencv={cv2.__version__} pymunk={importlib.metadata.version(\"pymunk\")} wandb={wandb.__version__} gpus={torch.cuda.device_count()}")'
+python3 - <<'PY'
+import cv2
+import importlib.metadata
+import pymunk
+import torch
+import wandb
+
+assert hasattr(pymunk.Space, "on_collision"), "Pymunk 7 API is required"
+assert torch.cuda.device_count() == 4, torch.cuda.device_count()
+print(
+    "[decision-fidelity] preflight=pass "
+    f"torch={torch.__version__} "
+    f"opencv={cv2.__version__} "
+    f"pymunk={importlib.metadata.version('pymunk')} "
+    f"wandb={wandb.__version__} "
+    f"gpus={torch.cuda.device_count()}"
+)
+PY
 
 failures=()
 for row in "${ROWS[@]}"; do

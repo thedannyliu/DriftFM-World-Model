@@ -76,3 +76,5 @@ def test_decision_fidelity_plan_separates_evidence_and_smoke():
     assert "GPC_EXECUTION_STRATEGY=policy_first" in queue
     assert "GPC_AUDIT_MAX_DECISIONS=4" in queue
     assert "GPC_AUDIT_REPEAT_GROUND_TRUTH=true" in queue
+    assert "importlib.metadata.version('pymunk')" in queue
+    assert '\\"pymunk\\"' not in queue
