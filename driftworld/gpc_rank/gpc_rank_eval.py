@@ -316,7 +316,7 @@ def run_gpc_rank(cfg, num_trial, num_parallel, start_number_test, end_number_tes
                     # run. The extra slots are duplicated only for tensor shape;
                     # they are never ranked on this warm-up decision.
                     proposal_count = num_trial
-                    if candidate_anchor_count and len(pred_imgs) == 0:
+                    if candidate_anchor_count and len(last_obs_gt) == 0:
                         proposal_count = candidate_anchor_count
 
                     def sample_policy_actions(count):

@@ -78,3 +78,9 @@ def test_decision_fidelity_plan_separates_evidence_and_smoke():
     assert "GPC_AUDIT_REPEAT_GROUND_TRUTH=true" in queue
     assert "importlib.metadata.version('pymunk')" in queue
     assert '\\"pymunk\\"' not in queue
+
+    evaluator = (
+        REPO_ROOT / "driftworld" / "gpc_rank" / "gpc_rank_eval.py"
+    ).read_text()
+    assert "candidate_anchor_count and len(last_obs_gt) == 0" in evaluator
+    assert "candidate_anchor_count and len(pred_imgs) == 0" not in evaluator
